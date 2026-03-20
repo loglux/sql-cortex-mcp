@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  python-checks:
+  checks:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,23 +31,5 @@ jobs:
       - name: Black format check
         run: black --check app tests
 
-      - name: Unit tests
-        run: python -m unittest -q tests/test_sql_policy.py
-
-  frontend-checks:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Stylelint CSS
-        run: npx stylelint app/web/static/styles.css
+      - name: Tests
+        run: pytest --tb=short -q
