@@ -402,10 +402,17 @@ def build_router(
                 {"request": request, "msg": message, **ctx},
             )
 
-        # /schema — full schema
+        # /schema — full schema with ER diagram
         if msg_lower == "/schema":
             result = registry.call("sql.schema", {})
-            ctx = {"query_result": result, "is_direct": True, "command": "schema"}
+            schema_data = result.get("schema", {})
+            mermaid = _build_mermaid_er(schema_data)
+            ctx = {
+                "query_result": result,
+                "is_direct": True,
+                "command": "schema",
+                "mermaid": mermaid,
+            }
             settings_db.add_chat_message(session_id, "user", message)
             _save_assistant(session_id, ctx)
             return templates.TemplateResponse(

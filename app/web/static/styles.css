@@ -295,10 +295,16 @@ textarea:hover {
   margin-bottom: 12px;
 }
 
-.er-diagram .mermaid {
+.er-diagram .mermaid,
+.chat-er-diagram .mermaid {
   background: transparent;
   display: flex;
   justify-content: center;
+}
+
+.chat-er-diagram {
+  margin: 8px 0;
+  overflow-x: auto;
 }
 
 .er-legend {

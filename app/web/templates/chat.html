@@ -58,12 +58,17 @@
           <div class="chat-bubble assistant">
             {% if p.command == 'schema' and p.query_result and p.query_result.schema %}
               <div class="bubble-label">Schema</div>
-              {% for table, info in p.query_result.schema.tables.items() %}
+              {% if p.mermaid %}
+              <div class="chat-er-diagram">
+                <pre class="mermaid">{{ p.mermaid }}</pre>
+              </div>
+              {% endif %}
+              {% for table, info in p.query_result.schema.items() %}
               <div class="cmd-block">
                 <strong>{{ table }}</strong>
                 <div class="cmd-cols">
-                  {% for col, spec in info.columns.items() %}
-                  <span class="cmd-col">{{ col }} <span class="muted">{{ spec.type }}</span></span>
+                  {% for col in info.columns %}
+                  <span class="cmd-col">{{ col.name }} <span class="muted">{{ col.type }}</span></span>
                   {% endfor %}
                 </div>
               </div>
@@ -170,5 +175,29 @@ document.addEventListener('keydown', function(e) {
     input.value = '/';
   }
 });
+
+// Re-render Mermaid diagrams after HTMX swap (for /schema command)
+document.body.addEventListener('htmx:afterSwap', function() {
+  if (typeof mermaid !== 'undefined') {
+    mermaid.run();
+  }
+});
+</script>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  window.mermaid = mermaid;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1c2328',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#57c4ff',
+      lineColor: '#7ef6c7',
+      secondaryColor: '#161c20',
+      tertiaryColor: '#0f1416',
+    }
+  });
 </script>
 {% endblock content %}

@@ -8,13 +8,18 @@
 <div class="chat-bubble assistant">
   {% if command == 'schema' %}
     <div class="bubble-label">Schema</div>
+    {% if mermaid %}
+      <div class="chat-er-diagram">
+        <pre class="mermaid">{{ mermaid }}</pre>
+      </div>
+    {% endif %}
     {% if query_result and query_result.schema %}
-      {% for table, info in query_result.schema.tables.items() %}
+      {% for table, info in query_result.schema.items() %}
       <div class="cmd-block">
         <strong>{{ table }}</strong>
         <div class="cmd-cols">
-          {% for col, spec in info.columns.items() %}
-          <span class="cmd-col">{{ col }} <span class="muted">{{ spec.type }}</span></span>
+          {% for col in info.columns %}
+          <span class="cmd-col">{{ col.name }} <span class="muted">{{ col.type }}</span></span>
           {% endfor %}
         </div>
       </div>
