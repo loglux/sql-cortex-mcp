@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}SQL Cortex MCP - Settings{% endblock %}
+{% block title %}SQL Cortex MCP - Settings{% endblock title %}
 
 {% block content %}
 {% set flash = request.query_params.get('saved', '') or request.query_params.get('activated', '') %}
@@ -212,7 +212,6 @@
       </div>
       {% endif %}
 
-
       <div class="actions">
         <button class="button" type="submit">Save provider</button>
         {% if not p.is_active %}
@@ -255,4 +254,4 @@ var initialProvider = '{{ active_provider }}';
 var btn = document.querySelector('.provider-item[data-provider-tab="' + initialProvider + '"]');
 if (btn) switchProvider(initialProvider, btn);
 </script>
-{% endblock %}
+{% endblock content %}
