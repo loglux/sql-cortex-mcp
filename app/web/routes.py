@@ -424,7 +424,7 @@ def build_router(
         # /tables — list table names
         if msg_lower == "/tables":
             result = registry.call("sql.schema", {})
-            tables = list(result.get("schema", {}).get("tables", {}).keys())
+            tables = list(result.get("schema", {}).keys())
             ctx = {"tables": tables, "is_direct": True, "command": "tables"}
             settings_db.add_chat_message(session_id, "user", message)
             _save_assistant(session_id, ctx)
