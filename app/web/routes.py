@@ -72,10 +72,12 @@ def build_router(
     @router.get("/schema", response_class=HTMLResponse)
     def schema(request: Request):
         result = current_registry().call("sql.schema", {})
+        schema_data = result.get("schema", {})
+        mermaid = _build_mermaid_er(schema_data)
         return templates.TemplateResponse(
             request,
             "schema.html",
-            {"request": request, "schema": result.get("schema", {})},
+            {"request": request, "schema": schema_data, "mermaid": mermaid},
         )
 
     @router.get("/history", response_class=HTMLResponse)
@@ -525,3 +527,32 @@ async def _fetch_provider_models(provider: str, api_key: str, base_url: str) -> 
             return models
     except Exception as exc:
         return str(exc)
+
+
+def _build_mermaid_er(schema: dict) -> str:
+    """Generate a Mermaid erDiagram string from schema introspection data."""
+    lines = ["erDiagram"]
+    fk_relations: list[str] = []
+
+    for table, info in schema.items():
+        lines.append(f"    {table} {{")
+        for col in info.get("columns", []):
+            col_type = col["type"].replace(" ", "_").upper()
+            pk = "PK" if col["name"] == "id" else ""
+            fk = ""
+            for fk_info in info.get("foreign_keys", []):
+                if col["name"] in fk_info.get("constrained_columns", []):
+                    fk = "FK"
+                    ref_table = fk_info["referred_table"]
+                    fk_relations.append(f'    {ref_table} ||--o{{ {table} : ""')
+                    break
+            key_marker = f"{pk},{fk}" if pk and fk else (pk or fk)
+            key_str = f" {key_marker}" if key_marker else ""
+            lines.append(f"        {col_type} {col['name']}{key_str}")
+        lines.append("    }")
+
+    for rel in fk_relations:
+        lines.append(rel)
+
+    # Add isolated tables (no FK relations) so they still appear
+    return "\n".join(lines)

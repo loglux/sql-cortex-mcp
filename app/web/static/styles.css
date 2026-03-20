@@ -282,6 +282,25 @@ textarea:hover {
   color: var(--muted);
 }
 
+.er-diagram {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.er-diagram h3 {
+  margin-bottom: 12px;
+}
+
+.er-diagram .mermaid {
+  background: transparent;
+  display: flex;
+  justify-content: center;
+}
+
 .schema-grid {
   display: grid;
   gap: 16px;

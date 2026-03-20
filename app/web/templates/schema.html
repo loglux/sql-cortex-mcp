@@ -4,6 +4,14 @@
 {% block content %}
 <section class="panel">
   <h2>Schema</h2>
+
+  {% if mermaid %}
+  <div class="er-diagram">
+    <h3>ER Diagram</h3>
+    <pre class="mermaid">{{ mermaid }}</pre>
+  </div>
+  {% endif %}
+
   {% if schema %}
     <div class="schema-grid">
       {% for table, info in schema.items() %}
@@ -48,4 +56,20 @@
     <p class="muted">No schema available.</p>
   {% endif %}
 </section>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1c2328',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#57c4ff',
+      lineColor: '#7ef6c7',
+      secondaryColor: '#161c20',
+      tertiaryColor: '#0f1416',
+    }
+  });
+</script>
 {% endblock content %}
