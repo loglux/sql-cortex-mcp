@@ -30,9 +30,11 @@
     <div class="bubble-label">Tables</div>
     {% if tables %}
     <div class="cmd-block">
-      {% for t in tables %}
-      <span class="cmd-col">{{ t }}</span>
-      {% endfor %}
+      <div class="cmd-cols">
+        {% for t in tables %}
+        <span class="cmd-col">{{ t }}</span>
+        {% endfor %}
+      </div>
     </div>
     {% else %}
     <div class="muted">No tables found.</div>

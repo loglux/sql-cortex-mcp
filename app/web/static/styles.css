@@ -508,6 +508,8 @@ label {
   flex-direction: column;
   padding: 20px;
   gap: 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -534,7 +536,9 @@ label {
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
+  min-width: 0;
 }
 
 .chat-empty {
@@ -563,6 +567,8 @@ label {
   display: flex;
   flex-direction: column;
   max-width: 85%;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .chat-bubble.user {
