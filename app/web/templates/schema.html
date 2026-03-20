@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — Schema{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Schema</h2>
+  {% if schema %}
+    <div class="schema-grid">
+      {% for table, info in schema.items() %}
+      <div class="card">
+        <h3>{{ table }}</h3>
+        <div class="muted">Columns</div>
+        <ul class="list">
+          {% for col in info.columns %}
+          <li><span>{{ col.name }}</span><strong>{{ col.type }}</strong></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">No schema available.</p>
+  {% endif %}
+</section>
+{% endblock %}

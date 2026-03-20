@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP - Settings{% endblock %}
+
+{% block content %}
+{% set flash = request.query_params.get('saved', '') or request.query_params.get('activated', '') %}
+{% set reset = request.query_params.get('reset', '') %}
+{% set saved_provider = request.query_params.get('saved', '') %}
+{% set db_active = providers | selectattr('is_active') | map(attribute='provider') | first | default('') %}
+{% set active_provider = (saved_provider if saved_provider and saved_provider != 'db' else '') or db_active or config.llm_provider or (providers[0].provider if providers else 'openai') %}
+{% set provider_meta = {
+  'openai': ('OpenAI', 'Hosted frontier models'),
+  'anthropic': ('Anthropic', 'Hosted reasoning models'),
+  'deepseek': ('DeepSeek', 'Hosted low-cost models'),
+  'gemini': ('Gemini', 'Google-hosted models'),
+  'groq': ('Groq', 'Fast hosted inference'),
+  'mistral': ('Mistral', 'Hosted Mistral models'),
+  'ollama': ('Ollama', 'Local or remote Ollama instance'),
+} %}
+{% set default_urls = {
+  'openai': 'https://api.openai.com',
+  'anthropic': 'https://api.anthropic.com',
+  'deepseek': 'https://api.deepseek.com',
+  'gemini': 'https://generativelanguage.googleapis.com/v1beta/openai',
+  'groq': 'https://api.groq.com/openai',
+  'mistral': 'https://api.mistral.ai',
+  'ollama': 'http://localhost:11434',
+} %}
+{% set live_db_url = db_conn.url if db_conn and db_conn.url else config.db_url %}
+
+<div class="settings-header">
+  <div>
+    <p class="eyebrow">Settings</p>
+    <h1>Runtime configuration</h1>
+    <p class="muted">Database safety and model routing for the running server.</p>
+  </div>
+  <form method="post" action="/settings/reset" onsubmit="return confirm('Reset all runtime overrides?')">
+    <button type="submit" class="button ghost">Reset overrides</button>
+  </form>
+</div>
+
+{% if flash %}
+<div class="notice notice--ok">Saved and applied.</div>
+{% elif reset %}
+<div class="notice">Reset to environment defaults.</div>
+{% endif %}
+
+<!-- ── Database ─────────────────────────────────────────────────────────── -->
+<section class="panel" style="margin-bottom: 24px">
+  <div class="panel-head">
+    <div>
+      <h2>Database</h2>
+      <p>Connection string and execution safeguards.</p>
+    </div>
+    <span class="tag">{{ config.mode }}</span>
+  </div>
+
+  <form method="post" action="/settings/db">
+    <div class="form-group">
+      <label class="field-label">Connection URL</label>
+      <input type="text" name="db_url" value="{{ live_db_url }}" placeholder="sqlite:///./data/dev.db">
+      <span class="field-hint">Changing this requires server restart.</span>
+      <div class="chips">
+        <button type="button" class="chip" onclick="setDbTemplate('sqlite:///./data/dev.db')">SQLite</button>
+        <button type="button" class="chip" onclick="setDbTemplate('postgresql://user:pass@localhost:5432/dbname')">PostgreSQL</button>
+        <button type="button" class="chip" onclick="setDbTemplate('mysql://user:pass@localhost:3306/dbname')">MySQL</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="inline-grid">
+        <div>
+          <label class="field-label">Mode</label>
+          <select name="db_mode">
+            <option value="read-only" {% if config.mode == 'read-only' %}selected{% endif %}>read-only</option>
+            <option value="execute" {% if config.mode == 'execute' %}selected{% endif %}>execute</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Query timeout (ms)</label>
+          <input type="number" name="timeout_ms" value="{{ config.timeout_ms }}" min="100" step="100">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="inline-grid">
+        <div>
+          <label class="field-label">Row limit</label>
+          <input type="number" name="limit_default" value="{{ config.limit_default }}" min="0" max="10000">
+        </div>
+      </div>
+      <label class="checkbox">
+        <input type="checkbox" name="allow_destructive" {% if config.allow_destructive %}checked{% endif %}>
+        <span>Allow destructive operations</span>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="enable_explanations" {% if config.enable_explanations %}checked{% endif %}>
+        <span>Enable query explanations</span>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button class="button" type="submit">Save database settings</button>
+    </div>
+  </form>
+</section>
+
+<!-- ── Chat ────────────────────────────────────────────────────────────── -->
+<section class="panel" style="margin-bottom: 24px">
+  <div class="panel-head">
+    <div>
+      <h2>Chat</h2>
+      <p>LLM memory and conversation settings.</p>
+    </div>
+  </div>
+
+  <form method="post" action="/settings/chat">
+    <div class="form-group">
+      <div class="inline-grid">
+        <div>
+          <label class="field-label">History limit (messages)</label>
+          <input type="number" name="chat_history_limit" value="{{ config.chat_history_limit }}" min="0" max="100">
+          <span class="field-hint">How many past messages to send as LLM context. 0 = unlimited.</span>
+        </div>
+      </div>
+      <label class="checkbox">
+        <input type="checkbox" name="chat_history_enabled" {% if config.chat_history_enabled %}checked{% endif %}>
+        <span>Enable chat memory (send conversation history to LLM)</span>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button class="button" type="submit">Save chat settings</button>
+    </div>
+  </form>
+</section>
+
+<!-- ── Model providers ─────────────────────────────────────────────────── -->
+<section class="panel settings-split">
+  <aside class="settings-providers">
+    <h3>Providers</h3>
+    <p class="muted">Select one to configure.</p>
+
+    <div class="provider-list" role="tablist" aria-label="Model providers">
+      {% for p in providers %}
+      {% set configured = (p.api_key and p.api_key != '') or p.provider == 'ollama' %}
+      {% set provider_name, provider_desc = provider_meta[p.provider] %}
+      {% set status = 'active' if p.is_active else ('configured' if configured else 'empty') %}
+      <button type="button"
+              class="provider-item"
+              data-provider-tab="{{ p.provider }}"
+              onclick="switchProvider('{{ p.provider }}', this)">
+        <strong>{{ provider_name }}</strong>
+        <span class="tag">{{ status }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <div class="settings-detail">
+    {% for p in providers %}
+    {% set configured = (p.api_key and p.api_key != '') or p.provider == 'ollama' %}
+    {% set provider_name, provider_desc = provider_meta[p.provider] %}
+    {% set current_model = p.model or (config.llm_model if config.llm_provider == p.provider else '') %}
+    <form method="post"
+          action="/settings/llm/{{ p.provider }}"
+          id="provider-pane-{{ p.provider }}"
+          class="provider-pane">
+      <input type="hidden" name="model" id="hidden-model-{{ p.provider }}" value="{{ current_model }}">
+
+      <div class="panel-head">
+        <div>
+          <h2>{{ provider_name }}</h2>
+          <p>{{ provider_desc }}</p>
+        </div>
+        <div class="current-model">
+          <span>Current model</span>
+          <strong id="current-model-label-{{ p.provider }}">{{ current_model or 'not set' }}</strong>
+        </div>
+      </div>
+
+      <div class="fetch-row">
+        <div>
+          <label class="field-label">Live model list</label>
+          <select id="live-{{ p.provider }}" onchange="applyLiveModel('{{ p.provider }}', this.value)">
+            <option value="">Choose a live model</option>
+          </select>
+        </div>
+        <button type="button"
+                class="button ghost button-sm"
+                hx-get="/settings/models"
+                hx-vals='js:{"provider":"{{ p.provider }}","llm_api_key":document.getElementById("key-{{ p.provider }}")?.value || "","llm_base_url":document.getElementById("base-{{ p.provider }}")?.value || ""}'
+                hx-target="#live-{{ p.provider }}"
+                hx-swap="innerHTML">
+          Fetch models
+        </button>
+      </div>
+
+      {% if p.provider != 'ollama' %}
+      <div>
+        <label class="field-label">API key</label>
+        <input type="password" id="key-{{ p.provider }}" name="api_key"
+               placeholder="{% if configured %}Stored. Enter to replace{% else %}Paste API key{% endif %}"
+               autocomplete="new-password">
+      </div>
+      {% else %}
+      <div>
+        <label class="field-label">Base URL</label>
+        <input type="text" id="base-{{ p.provider }}" name="base_url"
+               value="{{ p.base_url or '' }}"
+               placeholder="{{ default_urls[p.provider] }}">
+      </div>
+      {% endif %}
+
+
+      <div class="actions">
+        <button class="button" type="submit">Save provider</button>
+        {% if not p.is_active %}
+        <button class="button ghost" type="submit" formaction="/settings/llm/{{ p.provider }}/activate">Set active</button>
+        {% else %}
+        <span class="muted" style="font-size:13px">This provider is active</span>
+        {% endif %}
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+function switchProvider(provider, btn) {
+  document.querySelectorAll('.provider-item').forEach(function(node) {
+    node.classList.toggle('is-active', node === btn || node.dataset.providerTab === provider);
+  });
+  document.querySelectorAll('.provider-pane').forEach(function(pane) {
+    pane.classList.toggle('is-active', pane.id === 'provider-pane-' + provider);
+  });
+}
+
+function setDbTemplate(value) {
+  var input = document.querySelector('input[name="db_url"]');
+  if (!input) return;
+  input.value = value;
+  input.focus();
+}
+
+function applyLiveModel(provider, value) {
+  if (!value) return;
+  var hidden = document.getElementById('hidden-model-' + provider);
+  var label = document.getElementById('current-model-label-' + provider);
+  if (hidden) hidden.value = value;
+  if (label) label.textContent = value || 'not set';
+}
+
+var initialProvider = '{{ active_provider }}';
+var btn = document.querySelector('.provider-item[data-provider-tab="' + initialProvider + '"]');
+if (btn) switchProvider(initialProvider, btn);
+</script>
+{% endblock %}

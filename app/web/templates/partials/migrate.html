@@ -1,0 +1,33 @@
+<div class="result">
+  {% if result.error %}
+    <div class="error">{{ result.error }}</div>
+  {% else %}
+    <div class="tag">{{ result.count }} statements</div>
+    {% if result.dry_run %}
+      <div class="muted">Dry run only — no changes applied.</div>
+    {% endif %}
+    <div class="history" style="margin-top: 12px;">
+      {% for item in result.results %}
+        <div class="history-item">
+          <div class="meta">
+            {% if item.ok %}
+              <span class="status ok">OK</span>
+            {% else %}
+              <span class="status err">ERR</span>
+            {% endif %}
+            {% if item.elapsed_ms %}
+              <span class="muted">{{ item.elapsed_ms }} ms</span>
+            {% endif %}
+            {% if item.dry_run %}
+              <span class="tag">dry-run</span>
+            {% endif %}
+          </div>
+          <pre>{{ item.sql }}</pre>
+          {% if item.error %}
+            <div class="error">{{ item.error }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

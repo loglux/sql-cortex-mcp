@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}SQL Cortex MCP{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  </head>
+  <body>
+    <div class="bg-grid"></div>
+    <header class="site-header">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <div class="brand-title">SQL Cortex MCP</div>
+          <div class="brand-subtitle">Agent-first SQL control plane</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/">Overview</a>
+        <a href="/chat">Chat</a>
+        <a href="/sandbox">Sandbox</a>
+        <a href="/schema">Schema</a>
+        <a href="/design">Design</a>
+        <a href="/history">History</a>
+        <a href="/settings">Settings</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <span>Mode: {{ mode | default('read-only') }}</span>
+    </footer>
+  </body>
+</html>

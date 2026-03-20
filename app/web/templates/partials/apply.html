@@ -1,0 +1,8 @@
+<div class="result">
+  {% if result.error %}
+    <div class="error">{{ result.error }}</div>
+  {% else %}
+    <div class="tag">Applied</div>
+    <div class="muted">Elapsed: {{ result.elapsed_ms }} ms</div>
+  {% endif %}
+</div>

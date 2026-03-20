@@ -1,0 +1,76 @@
+#!/bin/sh
+set -e
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+STAGED_HTML=$(git diff --cached --name-only --diff-filter=ACM | grep '\.html$' || true)
+STAGED_CSS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.css$' || true)
+
+if [ -z "$STAGED" ] && [ -z "$STAGED_HTML" ] && [ -z "$STAGED_CSS" ]; then
+    exit 0
+fi
+
+PY_COUNT=$(echo "$STAGED" | wc -l)
+HTML_COUNT=$(echo "$STAGED_HTML" | wc -l)
+CSS_COUNT=$(echo "$STAGED_CSS" | wc -l)
+printf "\n[pre-commit] Checking %s Python, %s HTML, %s CSS file(s)...\n" "$PY_COUNT" "$HTML_COUNT" "$CSS_COUNT"
+
+if [ -f .venv/bin/activate ]; then
+    . .venv/bin/activate
+fi
+
+if [ -n "$STAGED" ]; then
+    printf "[pre-commit] black... "
+    if echo "$STAGED" | xargs black --check --quiet 2>/dev/null; then
+        printf "OK\n"
+    else
+        printf "FAILED\n"
+        printf "  Run: black <files> to fix formatting\n"
+        exit 1
+    fi
+
+    printf "[pre-commit] ruff... "
+    RUFF_OUT=$(echo "$STAGED" | xargs ruff check --force-exclude 2>/dev/null || true)
+    if [ -n "$RUFF_OUT" ]; then
+        printf "FAILED\n"
+        echo "$RUFF_OUT"
+        printf "  Run: ruff check <files> --fix to auto-fix some issues\n"
+        exit 1
+    else
+        printf "OK\n"
+    fi
+fi
+
+if [ -n "$STAGED_HTML" ]; then
+    printf "[pre-commit] djlint... "
+    if echo "$STAGED_HTML" | xargs djlint --check 2>/dev/null; then
+        printf "OK\n"
+    else
+        printf "FAILED\n"
+        printf "  Run: djlint --reformat <files> to fix templates\n"
+        exit 1
+    fi
+fi
+
+if [ -n "$STAGED_CSS" ]; then
+    printf "[pre-commit] stylelint... "
+    if echo "$STAGED_CSS" | xargs stylelint 2>/dev/null; then
+        printf "OK\n"
+    else
+        printf "FAILED\n"
+        printf "  Run: npx stylelint <files> --fix to fix CSS\n"
+        exit 1
+    fi
+fi
+
+printf "[pre-commit] secrets... "
+SECRETS_FOUND=$(echo "$STAGED" | xargs grep -lnE '(sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16}|password\s*=\s*["\047][^"\047]{8,})' 2>/dev/null | grep -v 'config\.py\|\.env\|test' || true)
+if [ -n "$SECRETS_FOUND" ]; then
+    printf "FAILED\n"
+    printf "  Possible secrets found in:\n"
+    echo "$SECRETS_FOUND" | sed 's/^/    /'
+    exit 1
+else
+    printf "OK\n"
+fi
+
+printf "[pre-commit] All checks passed!\n\n"

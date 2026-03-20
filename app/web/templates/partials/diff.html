@@ -1,0 +1,131 @@
+<div class="result">
+  {% if result.error %}
+    <div class="error">{{ result.error }}</div>
+  {% endif %}
+
+  <div class="grid two">
+    <div class="card">
+      <h3>Missing Tables</h3>
+      {% if result.missing_tables %}
+        <ul class="list">
+          {% for t in result.missing_tables %}
+            <li><span>{{ t }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Extra Tables</h3>
+      {% if result.extra_tables %}
+        <ul class="list">
+          {% for t in result.extra_tables %}
+            <li><span>{{ t }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid two offset-top">
+    <div class="card">
+      <h3>Missing Columns</h3>
+      {% if result.missing_columns %}
+        {% for table, cols in result.missing_columns.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for c in cols %}
+              <li><span>{{ c }}</span></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Extra Columns</h3>
+      {% if result.extra_columns %}
+        {% for table, cols in result.extra_columns.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for c in cols %}
+              <li><span>{{ c }}</span></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid two offset-top">
+    <div class="card">
+      <h3>Type Mismatches</h3>
+      {% if result.type_mismatches %}
+        {% for table, cols in result.type_mismatches.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for c in cols %}
+              <li><span>{{ c.column }}</span><strong>{{ c.current }} → {{ c.desired }}</strong></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Nullable Mismatches</h3>
+      {% if result.nullable_mismatches %}
+        {% for table, cols in result.nullable_mismatches.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for c in cols %}
+              <li><span>{{ c.column }}</span><strong>{{ c.current }} → {{ c.desired }}</strong></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid two offset-top">
+    <div class="card">
+      <h3>Missing Indexes</h3>
+      {% if result.missing_indexes %}
+        {% for table, idxs in result.missing_indexes.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for idx in idxs %}
+              <li><span>{{ idx.name }}</span><strong>{{ idx.columns }}</strong></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Extra Indexes</h3>
+      {% if result.extra_indexes %}
+        {% for table, idxs in result.extra_indexes.items() %}
+          <div class="muted">{{ table }}</div>
+          <ul class="list">
+            {% for idx in idxs %}
+              <li><span>{{ idx.name }}</span><strong>{{ idx.columns }}</strong></li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% else %}
+        <div class="muted">None</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

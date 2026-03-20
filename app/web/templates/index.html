@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — Overview{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>SQL Cortex MCP</h1>
+  <p class="lead">A modular MCP server for safe SQL execution, schema design, and agent tooling.</p>
+  <div class="hero-cards">
+    <div class="card">
+      <h3>Policy-First</h3>
+      <p>Read-only by default with explicit execute mode for DDL/DML.</p>
+    </div>
+    <div class="card">
+      <h3>Agent Ready</h3>
+      <p>Structured tools for queries, schema introspection, and explain plans.</p>
+    </div>
+    <div class="card">
+      <h3>Auditable</h3>
+      <p>Query history and logging built into the control plane.</p>
+    </div>
+  </div>
+</section>
+
+<section class="grid two">
+  <div class="panel">
+    <h2>Runtime</h2>
+    <ul class="list">
+      <li><span>Mode</span><strong>{{ mode }}</strong></li>
+      <li><span>DB URL</span><strong>{{ db_url }}</strong></li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>Quick Links</h2>
+    <div class="actions">
+      <a class="button" href="/sandbox">Open Sandbox</a>
+      <a class="button ghost" href="/schema">View Schema</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

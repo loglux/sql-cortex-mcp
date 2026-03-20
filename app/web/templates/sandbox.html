@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — Sandbox{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Sandbox</h2>
+  <p class="muted">Run SQL queries under the active policy.</p>
+  <form class="form" hx-post="/sandbox/run" hx-target="#result" hx-swap="innerHTML">
+    <label for="sql">SQL Query</label>
+    <textarea id="sql" name="sql" rows="6" placeholder="SELECT * FROM ..."></textarea>
+    <div class="actions">
+      <button class="button" type="submit">Run Query</button>
+      <span class="tag">Mode: {{ mode }}</span>
+    </div>
+  </form>
+</section>
+
+<section id="result" class="panel">
+  <div class="muted">Results will appear here.</div>
+</section>
+{% endblock %}

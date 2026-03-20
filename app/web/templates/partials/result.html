@@ -1,0 +1,25 @@
+<div class="result">
+  {% if result.error %}
+    <div class="error">{{ result.error }}</div>
+  {% endif %}
+  <div class="muted">Rows: {{ result.row_count }}</div>
+  {% if result.columns and result.rows %}
+    <div class="table">
+      <div class="row header">
+        {% for col in result.columns %}
+          <div class="cell">{{ col }}</div>
+        {% endfor %}
+      </div>
+      {% for row in result.rows %}
+        <div class="row">
+          {% for col in result.columns %}
+            <div class="cell">{{ row[col] }}</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if result.explanation %}
+    <div class="explanation">{{ result.explanation }}</div>
+  {% endif %}
+</div>

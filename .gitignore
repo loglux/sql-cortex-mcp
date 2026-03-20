@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Data (runtime state)
+data/
+
+# Testing / tools
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Internal docs (not for public repo)
+CLAUDE.md
+AGENTS.md
+AGENTS.mdx
+SPEC.md
+RUNBOOK.md
+ROADMAP.md
+PRE_COMMIT_SETUP.md
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Claude Code local settings
+.claude/
+
+# Node (not a Node project)
+node_modules/
+package.json
+package-lock.json
+
+# Screenshots / temp images
+*.png
+
+# SQLite dev databases (outside data/)
+*.db
+
+# OS
+.DS_Store
+Thumbs.db

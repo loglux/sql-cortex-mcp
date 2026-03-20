@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — Chat{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+  <aside class="chat-sidebar">
+    <div class="chat-sidebar-head">
+      <h3>Sessions</h3>
+      <form method="post" action="/chat/new" style="margin:0">
+        <button class="button button-sm" type="submit">+ New</button>
+      </form>
+    </div>
+    <div class="chat-session-list">
+      {% for s in sessions %}
+      <a href="/chat/{{ s.id }}"
+         class="chat-session-item {% if active_session and s.id == active_session.id %}is-active{% endif %}">
+        <span class="chat-session-name">{{ s.name }}</span>
+        <span class="chat-session-date">{{ s.created_at[:10] if s.created_at else '' }}</span>
+      </a>
+      {% endfor %}
+      {% if not sessions %}
+      <div class="muted" style="padding: 12px; font-size: 13px">No sessions yet. Create one to start chatting.</div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <section class="chat-main">
+    {% if active_session %}
+    <div class="chat-header">
+      <div>
+        <h2>{{ active_session.name }}</h2>
+        <span class="tag">{{ llm_provider }} / {{ llm_model }}</span>
+        <span class="tag">{{ mode }}</span>
+        {% if not chat_history_enabled %}
+        <span class="tag">memory off</span>
+        {% endif %}
+      </div>
+      <div class="chat-header-actions">
+        <form method="post" action="/chat/{{ session_id }}/clear" style="margin:0"
+              onsubmit="return confirm('Clear all messages in this session?')">
+          <button class="button button-sm ghost" type="submit">Clear</button>
+        </form>
+        <form method="post" action="/chat/{{ session_id }}/delete" style="margin:0"
+              onsubmit="return confirm('Delete this session?')">
+          <button class="button button-sm ghost" type="submit" style="color:var(--danger)">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="chat-messages" class="chat-messages">
+      {% for m in messages %}
+        {% if m.role == 'user' %}
+        <div class="chat-bubble user">
+          <div class="bubble-content">{{ m.content }}</div>
+        </div>
+        {% elif m.role == 'assistant' and m.parsed %}
+          {% set p = m.parsed %}
+          <div class="chat-bubble assistant">
+            {% if p.command == 'schema' and p.query_result and p.query_result.schema %}
+              <div class="bubble-label">Schema</div>
+              {% for table, info in p.query_result.schema.tables.items() %}
+              <div class="cmd-block">
+                <strong>{{ table }}</strong>
+                <div class="cmd-cols">
+                  {% for col, spec in info.columns.items() %}
+                  <span class="cmd-col">{{ col }} <span class="muted">{{ spec.type }}</span></span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            {% elif p.command == 'tables' and p.tables %}
+              <div class="bubble-label">Tables</div>
+              <div class="cmd-block">
+                {% for t in p.tables %}<span class="cmd-col">{{ t }}</span>{% endfor %}
+              </div>
+            {% elif p.command == 'explain' and p.query_result %}
+              <div class="bubble-label">Explain</div>
+              {% if p.query_result.plan %}
+                <pre class="sql-block">{{ p.query_result.plan }}</pre>
+              {% elif p.query_result.error %}
+                <div class="error">{{ p.query_result.error }}</div>
+              {% endif %}
+            {% else %}
+              {% if p.thought %}<div class="bubble-label muted">{{ p.thought }}</div>{% endif %}
+              {% if p.sql %}<pre class="sql-block">{{ p.sql }}</pre>{% endif %}
+              {% if p.error %}<div class="error">{{ p.error }}</div>{% endif %}
+              {% if p.query_result and not p.query_result.error %}
+                {% if p.query_result.columns and p.query_result.rows %}
+                  <div class="table">
+                    <div class="row header">
+                      {% for col in p.query_result.columns %}<div class="cell">{{ col }}</div>{% endfor %}
+                    </div>
+                    {% for row in p.query_result.rows %}
+                      <div class="row">
+                        {% for col in p.query_result.columns %}<div class="cell">{{ row[col] }}</div>{% endfor %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                  <div class="muted">{{ p.query_result.row_count }} rows</div>
+                {% endif %}
+              {% elif p.query_result and p.query_result.error %}
+                <div class="error">{{ p.query_result.error }}</div>
+              {% endif %}
+              {% if p.explanation %}<div class="explanation">{{ p.explanation }}</div>{% endif %}
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+      {% if not messages %}
+      <div class="chat-empty" id="chat-welcome">
+        <p>Ask a question about your database in plain English.</p>
+        <div class="chat-commands">
+          <span class="chip">/run SQL</span>
+          <span class="chip">/explain SQL</span>
+          <span class="chip">/schema</span>
+          <span class="chip">/tables</span>
+        </div>
+        <p class="muted" style="font-size:12px">Ctrl+Enter to send</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <form class="chat-form" id="chat-form"
+          hx-post="/chat/send"
+          hx-target="#chat-messages"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset(); var el = document.getElementById('chat-messages'); el.scrollTop = el.scrollHeight; var w = document.getElementById('chat-welcome'); if(w) w.remove();">
+      <input type="hidden" name="session_id" value="{{ session_id }}">
+      <textarea name="message" id="chat-input" rows="2"
+                placeholder="Ask a question or use /run, /explain, /schema, /tables..."
+                required></textarea>
+      <button class="button" type="submit">Send</button>
+    </form>
+    {% else %}
+    <div class="chat-empty-state">
+      <h2>No session selected</h2>
+      <p class="muted">Create a new session to start chatting.</p>
+      <form method="post" action="/chat/new">
+        <button class="button" type="submit">New session</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+document.addEventListener('keydown', function(e) {
+  var input = document.getElementById('chat-input');
+  if (!input) return;
+
+  // Ctrl+Enter or Cmd+Enter — send
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (input.value.trim()) {
+      htmx.trigger(document.getElementById('chat-form'), 'submit');
+    }
+    return;
+  }
+
+  // Escape — focus input
+  if (e.key === 'Escape') {
+    input.blur();
+    return;
+  }
+
+  // / when not focused — focus input for command
+  if (e.key === '/' && document.activeElement !== input) {
+    e.preventDefault();
+    input.focus();
+    input.value = '/';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+jinja2
+python-dotenv
+psycopg2-binary
+python-multipart
+httpx
+cryptography

@@ -1,0 +1,32 @@
+<div class="result">
+  {% if result.error %}
+    <div class="error">{{ result.error }}</div>
+  {% else %}
+    <div class="tag">{{ result.count }} statements</div>
+    {% if result.dialect %}
+      <div class="muted">Dialect: {{ result.dialect }}</div>
+    {% endif %}
+    {% if result.destructive %}
+      <div class="error">Destructive plan enabled.</div>
+    {% else %}
+      <div class="muted">Non-destructive plan.</div>
+    {% endif %}
+    {% if result.warnings %}
+      <div class="panel offset-top">
+        <div class="error">Warnings</div>
+        <ul class="list">
+          {% for w in result.warnings %}
+            <li><span>{{ w }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    <div class="history" style="margin-top: 12px;">
+      {% for stmt in result.statements %}
+        <div class="history-item">
+          <pre>{{ stmt }}</pre>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

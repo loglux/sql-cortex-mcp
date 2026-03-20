@@ -1,0 +1,89 @@
+{% if cleared %}
+<div class="muted">History cleared.</div>
+{% else %}
+<div class="chat-bubble user">
+  <div class="bubble-content">{{ msg }}</div>
+</div>
+
+<div class="chat-bubble assistant">
+  {% if command == 'schema' %}
+    <div class="bubble-label">Schema</div>
+    {% if query_result and query_result.schema %}
+      {% for table, info in query_result.schema.tables.items() %}
+      <div class="cmd-block">
+        <strong>{{ table }}</strong>
+        <div class="cmd-cols">
+          {% for col, spec in info.columns.items() %}
+          <span class="cmd-col">{{ col }} <span class="muted">{{ spec.type }}</span></span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+  {% elif command == 'tables' %}
+    <div class="bubble-label">Tables</div>
+    {% if tables %}
+    <div class="cmd-block">
+      {% for t in tables %}
+      <span class="cmd-col">{{ t }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="muted">No tables found.</div>
+    {% endif %}
+
+  {% elif command == 'explain' %}
+    <div class="bubble-label">Explain</div>
+    {% if query_result and query_result.plan %}
+      <pre class="sql-block">{{ query_result.plan }}</pre>
+    {% elif query_result and query_result.error %}
+      <div class="error">{{ query_result.error }}</div>
+    {% else %}
+      <pre class="sql-block">{{ query_result }}</pre>
+    {% endif %}
+
+  {% else %}
+    {% if is_direct %}
+      <div class="bubble-label">Direct SQL</div>
+    {% elif thought %}
+      <div class="bubble-label muted">{{ thought }}</div>
+    {% endif %}
+
+    {% if sql %}
+      <pre class="sql-block">{{ sql }}</pre>
+    {% endif %}
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if query_result and not query_result.error %}
+      {% set result = query_result %}
+      {% if result.columns and result.rows %}
+        <div class="table">
+          <div class="row header">
+            {% for col in result.columns %}
+              <div class="cell">{{ col }}</div>
+            {% endfor %}
+          </div>
+          {% for row in result.rows %}
+            <div class="row">
+              {% for col in result.columns %}
+                <div class="cell">{{ row[col] }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+        <div class="muted">{{ result.row_count }} rows</div>
+      {% endif %}
+    {% elif query_result and query_result.error %}
+      <div class="error">{{ query_result.error }}</div>
+    {% endif %}
+
+    {% if explanation %}
+      <div class="explanation">{{ explanation }}</div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — History{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Query History</h2>
+  {% if entries %}
+  <div class="history">
+    {% for entry in entries %}
+      <div class="history-item">
+        <div class="meta">
+          <span class="tag">{{ entry.tool }}</span>
+          <span class="muted">{{ entry.ts }}</span>
+          <span class="muted">{{ entry.elapsed_ms }} ms</span>
+          <span class="muted">rows: {{ entry.rows }}</span>
+          {% if entry.ok %}
+            <span class="status ok">OK</span>
+          {% else %}
+            <span class="status err">ERR</span>
+          {% endif %}
+        </div>
+        <pre>{{ entry.sql }}</pre>
+        {% if entry.error %}
+          <div class="error">{{ entry.error }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="muted">No queries executed yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

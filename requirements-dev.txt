@@ -1,0 +1,7 @@
+black
+ruff
+djlint
+pytest
+pytest-cov
+pytest-asyncio
+httpx

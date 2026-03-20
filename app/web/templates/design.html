@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}SQL Cortex MCP — Design{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Design & Diff</h2>
+  <p class="muted">Provide a desired schema JSON to compare with the current database.</p>
+
+  <form class="form" hx-post="/design/diff" hx-target="#diff-result" hx-swap="innerHTML">
+    <label for="desired">Desired Schema (JSON)</label>
+    <textarea id="desired" name="desired" rows="10" placeholder='{"tables": {"users": {"columns": {"id": {"type": "INTEGER", "nullable": false}}}}}'></textarea>
+    <div class="actions">
+      <button class="button" type="submit">Diff Schema</button>
+    </div>
+  </form>
+</section>
+
+<section id="diff-result" class="panel">
+  <div class="muted">Diff results will appear here.</div>
+</section>
+
+<section class="panel">
+  <h2>Migration Plan</h2>
+  <p class="muted">Generate a SQL plan from desired schema (optional destructive).</p>
+  <form class="form" hx-post="/design/plan" hx-target="#plan-result" hx-swap="innerHTML">
+    <label for="plan-desired">Desired Schema (JSON)</label>
+    <textarea id="plan-desired" name="desired" rows="8" placeholder='{"tables": {"users": {"columns": {"id": {"type": "INTEGER", "nullable": false}}}}}'></textarea>
+    <label class="checkbox">
+      <input type="checkbox" name="destructive" value="true" />
+      <span>Include destructive steps (DROP)</span>
+    </label>
+    <div class="actions">
+      <button class="button" type="submit">Generate Plan</button>
+    </div>
+  </form>
+</section>
+
+<section id="plan-result" class="panel">
+  <div class="muted">Plan results will appear here.</div>
+</section>
+
+<section class="panel">
+  <h2>Plan & Apply</h2>
+  <p class="muted">Generate a plan and apply it in one step.</p>
+  <form class="form" hx-post="/design/plan-apply" hx-target="#plan-apply-result" hx-swap="innerHTML">
+    <label for="plan-apply-desired">Desired Schema (JSON)</label>
+    <textarea id="plan-apply-desired" name="desired" rows="8" placeholder='{"tables": {"users": {"columns": {"id": {"type": "INTEGER", "nullable": false}}}}}'></textarea>
+    <label class="checkbox">
+      <input type="checkbox" name="destructive" value="true" />
+      <span>Include destructive steps (DROP)</span>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="dry_run" value="true" />
+      <span>Dry run (no changes)</span>
+    </label>
+    <div class="actions">
+      <button class="button" type="submit">Plan & Apply</button>
+      <span class="tag">Mode: {{ mode }}</span>
+    </div>
+  </form>
+</section>
+
+<section id="plan-apply-result" class="panel">
+  <div class="muted">Plan & apply results will appear here.</div>
+</section>
+
+<section class="panel">
+  <h2>Apply SQL</h2>
+  <p class="muted">Apply a single SQL statement (requires MODE=execute).</p>
+  <form class="form" hx-post="/design/apply" hx-target="#apply-result" hx-swap="innerHTML">
+    <label for="apply-sql">SQL Statement</label>
+    <textarea id="apply-sql" name="sql" rows="6" placeholder="CREATE TABLE ..."></textarea>
+    <div class="actions">
+      <button class="button" type="submit">Apply</button>
+      <span class="tag">Mode: {{ mode }}</span>
+    </div>
+  </form>
+</section>
+
+<section id="apply-result" class="panel">
+  <div class="muted">Apply results will appear here.</div>
+</section>
+
+<section class="panel">
+  <h2>Batch Migrate</h2>
+  <p class="muted">Apply multiple SQL statements, optionally dry-run.</p>
+  <form class="form" hx-post="/design/migrate" hx-target="#migrate-result" hx-swap="innerHTML">
+    <label for="migrate-sql">SQL Statements (semicolon separated)</label>
+    <textarea id="migrate-sql" name="sql" rows="8" placeholder="CREATE TABLE ...; ALTER TABLE ...;"></textarea>
+    <label class="checkbox">
+      <input type="checkbox" name="dry_run" value="true" />
+      <span>Dry run (no changes)</span>
+    </label>
+    <div class="actions">
+      <button class="button" type="submit">Run Migration</button>
+      <span class="tag">Mode: {{ mode }}</span>
+    </div>
+  </form>
+</section>
+
+<section id="migrate-result" class="panel">
+  <div class="muted">Migration results will appear here.</div>
+</section>
+{% endblock %}
