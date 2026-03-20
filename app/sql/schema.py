@@ -17,6 +17,7 @@ class SchemaIntrospector:
         for t in tables:
             columns = inspector.get_columns(t)
             indexes = inspector.get_indexes(t)
+            foreign_keys = inspector.get_foreign_keys(t)
             result[t] = {
                 "columns": [
                     {
@@ -28,6 +29,15 @@ class SchemaIntrospector:
                     for c in columns
                 ],
                 "indexes": indexes,
+                "foreign_keys": [
+                    {
+                        "constrained_columns": fk.get("constrained_columns", []),
+                        "referred_table": fk.get("referred_table", ""),
+                        "referred_columns": fk.get("referred_columns", []),
+                        "name": fk.get("name"),
+                    }
+                    for fk in foreign_keys
+                ],
             }
 
         return result

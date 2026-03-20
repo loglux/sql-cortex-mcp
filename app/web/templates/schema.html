@@ -12,9 +12,35 @@
         <div class="muted">Columns</div>
         <ul class="list">
           {% for col in info.columns %}
-          <li><span>{{ col.name }}</span><strong>{{ col.type }}</strong></li>
+          <li>
+            <span>{{ col.name }}{% if not col.nullable %} <span class="badge">NOT NULL</span>{% endif %}</span>
+            <strong>{{ col.type }}</strong>
+          </li>
           {% endfor %}
         </ul>
+        {% if info.foreign_keys %}
+        <div class="muted" style="margin-top: 0.5rem">Foreign Keys</div>
+        <ul class="list fk-list">
+          {% for fk in info.foreign_keys %}
+          <li>
+            <span>{{ fk.constrained_columns | join(', ') }}</span>
+            <span class="fk-arrow">→</span>
+            <strong>{{ fk.referred_table }}.{{ fk.referred_columns | join(', ') }}</strong>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% if info.indexes %}
+        <div class="muted" style="margin-top: 0.5rem">Indexes</div>
+        <ul class="list idx-list">
+          {% for idx in info.indexes %}
+          <li>
+            <span>{{ idx.name or 'unnamed' }}</span>
+            <strong>{{ idx.column_names | join(', ') }}{% if idx.unique %} <span class="badge">UNIQUE</span>{% endif %}</strong>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

@@ -285,7 +285,27 @@ textarea:hover {
 .schema-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(87 196 255 / 15%);
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+.fk-list li,
+.idx-list li {
+  font-size: 13px;
+}
+
+.fk-arrow {
+  color: var(--accent-2);
+  margin: 0 4px;
 }
 
 .history-item {
