@@ -301,6 +301,15 @@ textarea:hover {
   justify-content: center;
 }
 
+.er-legend {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .schema-grid {
   display: grid;
   gap: 16px;

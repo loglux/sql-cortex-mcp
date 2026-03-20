@@ -544,7 +544,10 @@ def _build_mermaid_er(schema: dict) -> str:
                 if col["name"] in fk_info.get("constrained_columns", []):
                     fk = "FK"
                     ref_table = fk_info["referred_table"]
-                    fk_relations.append(f'    {ref_table} ||--o{{ {table} : ""')
+                    ref_cols = fk_info.get("referred_columns", [])
+                    ref_col = ref_cols[0] if ref_cols else "?"
+                    label = f"{table}.{col['name']} -> {ref_table}.{ref_col}"
+                    fk_relations.append(f'    {ref_table} ||--o{{ {table} : "{label}"')
                     break
             key_marker = f"{pk},{fk}" if pk and fk else (pk or fk)
             key_str = f" {key_marker}" if key_marker else ""
@@ -554,5 +557,4 @@ def _build_mermaid_er(schema: dict) -> str:
     for rel in fk_relations:
         lines.append(rel)
 
-    # Add isolated tables (no FK relations) so they still appear
     return "\n".join(lines)

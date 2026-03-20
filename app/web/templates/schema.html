@@ -9,6 +9,11 @@
   <div class="er-diagram">
     <h3>ER Diagram</h3>
     <pre class="mermaid">{{ mermaid }}</pre>
+    <div class="er-legend">
+      <span><strong>PK</strong> = Primary Key</span>
+      <span><strong>FK</strong> = Foreign Key</span>
+      <span>||--o{ = one-to-many</span>
+    </div>
   </div>
   {% endif %}
 
