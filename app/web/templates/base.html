@@ -7,6 +7,14 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/styles.css" />
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+    document.addEventListener('htmx:responseError', function(e) {
+      var target = e.detail.target;
+      if (target) {
+        target.innerHTML = '<div class="error">Request failed (' + e.detail.xhr.status + '). Please try again.</div>';
+      }
+    });
+    </script>
   </head>
   <body>
     <div class="bg-grid"></div>

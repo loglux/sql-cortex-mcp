@@ -885,37 +885,6 @@ h3 {
   color: var(--text);
 }
 
-.facts {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  margin: 4px 0;
-  border: 1px solid rgb(255 255 255 / 5%);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.facts div {
-  padding: 10px 14px;
-}
-
-.facts div + div {
-  border-left: 1px solid rgb(255 255 255 / 5%);
-}
-
-.facts dt {
-  color: rgb(154 165 177 / 60%);
-  font-size: 11px;
-  margin-bottom: 2px;
-}
-
-.facts dd {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-}
-
 /* Split pane (sidebar + detail) */
 .settings-split {
   display: grid;
@@ -1030,7 +999,6 @@ h3 {
   }
 
   .inline-grid,
-  .facts,
   .fetch-row {
     grid-template-columns: 1fr;
   }

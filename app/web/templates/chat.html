@@ -180,8 +180,8 @@ document.addEventListener('keydown', function(e) {
 
 // Re-render Mermaid diagrams after HTMX swap (for /schema command)
 document.body.addEventListener('htmx:afterSwap', function() {
-  if (typeof mermaid !== 'undefined') {
-    mermaid.run();
+  if (typeof mermaid !== 'undefined' && mermaid.run) {
+    try { mermaid.run(); } catch (e) { console.error('Mermaid render:', e); }
   }
 });
 </script>
