@@ -5,7 +5,7 @@
 <section class="panel">
   <h2>Sandbox</h2>
   <p class="muted">Run SQL queries under the active policy.</p>
-  <form class="form" hx-post="/sandbox/run" hx-target="#result" hx-swap="innerHTML">
+  <form class="form" hx-post="/sandbox/run" hx-target="#result" hx-swap="innerHTML" hx-disabled-elt="find button">
     <label for="sql">SQL Query</label>
     <textarea id="sql" name="sql" rows="6" placeholder="SELECT * FROM ..."></textarea>
     <div class="actions">

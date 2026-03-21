@@ -175,34 +175,40 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         unique = bool(index.get("unique", False))
         return (name, cols, unique)
 
+    def _qi(identifier: str) -> str:
+        """Quote a SQL identifier to prevent injection."""
+        sanitized = identifier.replace('"', '""')
+        return f'"{sanitized}"'
+
     def _create_index_sql(dialect: str, name: str, table: str, cols: str, unique: str) -> str:
-        return f"CREATE {unique}INDEX {name} ON {table} ({cols});"
+        return f"CREATE {unique}INDEX {_qi(name)} ON {_qi(table)} ({cols});"
 
     def _drop_index_sql(dialect: str, name: str, table: str) -> str:
         if dialect == "mysql":
-            return f"DROP INDEX {name} ON {table};"
-        return f"DROP INDEX {name};"
+            return f"DROP INDEX {_qi(name)} ON {_qi(table)};"
+        return f"DROP INDEX {_qi(name)};"
 
     def _alter_type_sql(
         dialect: str, table: str, column: str, desired: str
     ) -> tuple[str | None, str | None]:
+        t, c = _qi(table), _qi(column)
         if dialect == "postgresql":
-            return (f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {desired};", None)
+            return (f"ALTER TABLE {t} ALTER COLUMN {c} TYPE {desired};", None)
         if dialect == "mysql":
-            return (f"ALTER TABLE {table} MODIFY COLUMN {column} {desired};", None)
+            return (f"ALTER TABLE {t} MODIFY COLUMN {c} {desired};", None)
         if dialect == "sqlite":
             return (None, f"SQLite does not support ALTER COLUMN TYPE for {table}.{column}")
-        return (f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {desired};", None)
+        return (f"ALTER TABLE {t} ALTER COLUMN {c} TYPE {desired};", None)
 
     def _alter_nullable_sql(
         dialect: str, table: str, column: str, desired_nullable: bool
     ) -> tuple[str | None, str | None]:
+        t, c = _qi(table), _qi(column)
         if dialect == "postgresql":
             if desired_nullable:
-                return (f"ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL;", None)
-            return (f"ALTER TABLE {table} ALTER COLUMN {column} SET NOT NULL;", None)
+                return (f"ALTER TABLE {t} ALTER COLUMN {c} DROP NOT NULL;", None)
+            return (f"ALTER TABLE {t} ALTER COLUMN {c} SET NOT NULL;", None)
         if dialect == "mysql":
-            # MySQL needs full column definition; warn user.
             return (None, f"MySQL requires full column type to change NULL for {table}.{column}")
         if dialect == "sqlite":
             return (None, f"SQLite does not support ALTER COLUMN NULL for {table}.{column}")
@@ -210,7 +216,7 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
 
     def _drop_column_sql(dialect: str, table: str, column: str) -> tuple[str | None, str | None]:
         if dialect in {"postgresql", "mysql"}:
-            return (f"ALTER TABLE {table} DROP COLUMN {column};", None)
+            return (f"ALTER TABLE {_qi(table)} DROP COLUMN {_qi(column)};", None)
         if dialect == "sqlite":
             return (None, f"SQLite does not support DROP COLUMN for {table}.{column}")
         return (None, f"DROP COLUMN not supported for {dialect}")
@@ -289,15 +295,15 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             for name, c in columns.items():
                 col_type = c.get("type", "TEXT")
                 nullable = c.get("nullable", True)
-                col_defs.append(f"{name} {col_type}{'' if nullable else ' NOT NULL'}")
+                col_defs.append(f"{_qi(name)} {col_type}{'' if nullable else ' NOT NULL'}")
             if col_defs:
-                statements.append(f"CREATE TABLE {table} ({', '.join(col_defs)});")
+                statements.append(f"CREATE TABLE {_qi(table)} ({', '.join(col_defs)});")
 
             for idx in spec.get("indexes", []):
                 idx_norm = _normalize_index(idx)
                 idx_name = idx_norm.get("name") or f"idx_{table}_{'_'.join(idx_norm['columns'])}"
                 unique = "UNIQUE " if idx_norm.get("unique") else ""
-                cols = ", ".join(idx_norm.get("columns", []))
+                cols = ", ".join(_qi(c) for c in idx_norm.get("columns", []))
                 if cols:
                     statements.append(_create_index_sql(dialect, idx_name, table, cols, unique))
 
@@ -307,7 +313,8 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 col_type = spec.get("type", "TEXT")
                 nullable = spec.get("nullable", True)
                 not_null = "" if nullable else " NOT NULL"
-                statements.append(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}{not_null};")
+                stmt = f"ALTER TABLE {_qi(table)} ADD COLUMN {_qi(col)} {col_type}{not_null};"
+                statements.append(stmt)
 
         for table, cols in diff.get("type_mismatches", {}).items():
             for item in cols:
@@ -330,13 +337,13 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 idx_norm = _normalize_index(idx)
                 idx_name = idx_norm.get("name") or f"idx_{table}_{'_'.join(idx_norm['columns'])}"
                 unique = "UNIQUE " if idx_norm.get("unique") else ""
-                cols = ", ".join(idx_norm.get("columns", []))
+                cols = ", ".join(_qi(c) for c in idx_norm.get("columns", []))
                 if cols:
                     statements.append(_create_index_sql(dialect, idx_name, table, cols, unique))
 
         if destructive:
             for table in diff.get("extra_tables", []):
-                statements.append(f"DROP TABLE {table};")
+                statements.append(f"DROP TABLE {_qi(table)};")
             for table, cols in diff.get("extra_columns", {}).items():
                 for col in cols:
                     stmt, warn = _drop_column_sql(dialect, table, col)

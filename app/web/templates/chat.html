@@ -81,7 +81,8 @@
             {% elif p.command == 'explain' and p.query_result %}
               <div class="bubble-label">Explain</div>
               {% if p.query_result.plan %}
-                <pre class="sql-block">{{ p.query_result.plan }}</pre>
+                <pre class="sql-block">{% for row in p.query_result.plan %}{% for v in row.values() %}{{ v }}  {% endfor %}
+{% endfor %}</pre>
               {% elif p.query_result.error %}
                 <div class="error">{{ p.query_result.error }}</div>
               {% endif %}
@@ -129,6 +130,7 @@
           hx-post="/chat/send"
           hx-target="#chat-messages"
           hx-swap="beforeend"
+          hx-disabled-elt="find button"
           hx-on::after-request="this.reset(); var el = document.getElementById('chat-messages'); el.scrollTop = el.scrollHeight; var w = document.getElementById('chat-welcome'); if(w) w.remove();">
       <input type="hidden" name="session_id" value="{{ session_id }}">
       <textarea name="message" id="chat-input" rows="2"
