@@ -106,8 +106,20 @@ body {
 
 .container {
   padding: 40px 48px 80px;
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
+}
+
+@media (width >= 1800px) {
+  .container {
+    max-width: 1600px;
+  }
+}
+
+@media (width >= 2200px) {
+  .container {
+    max-width: 1900px;
+  }
 }
 
 .hero {
@@ -535,8 +547,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   padding-right: 4px;
   min-width: 0;
 }
@@ -766,6 +777,17 @@ h3 {
 
   .chat-bubble {
     max-width: 95%;
+  }
+}
+
+@media (width >= 1400px) {
+  .chat-bubble {
+    max-width: 75%;
+  }
+
+  .chat-bubble.assistant .bubble-content,
+  .chat-bubble.assistant > * {
+    max-width: 100%;
   }
 }
 
