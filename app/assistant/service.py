@@ -6,6 +6,7 @@ from app.config import Config
 from app.llm.base import LLMProvider
 from app.llm.providers.anthropic import AnthropicProvider
 from app.llm.providers.chat_completions import ChatCompletionsProvider
+from app.llm.providers.ollama import OllamaProvider
 from app.mcp.registry import ToolRegistry
 
 SYSTEM_PROMPT = """You are an expert SQL assistant connected to a {db_type} database.
@@ -143,6 +144,12 @@ def _build_provider(config: Config) -> LLMProvider:
     if provider == "anthropic":
         return AnthropicProvider(
             api_key=config.llm_api_key,
+            model=config.llm_model,
+            base_url=base_url,
+        )
+
+    if provider == "ollama":
+        return OllamaProvider(
             model=config.llm_model,
             base_url=base_url,
         )
