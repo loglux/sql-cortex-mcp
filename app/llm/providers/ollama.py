@@ -11,7 +11,7 @@ class OllamaProvider(LLMProvider):
         self.base_url = (base_url or "http://localhost:11434").rstrip("/")
         self.timeout = timeout
 
-    async def generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,

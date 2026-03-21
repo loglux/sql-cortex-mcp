@@ -18,7 +18,7 @@ class ChatCompletionsProvider(LLMProvider):
         self.base_url = (base_url or "https://api.openai.com").rstrip("/")
         self.timeout = timeout
 
-    async def generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         url = f"{self.base_url}/v1/chat/completions"
         payload: Dict[str, Any] = {
             "model": self.model,

@@ -20,7 +20,7 @@ class AnthropicProvider(LLMProvider):
         self.base_url = (base_url or "https://api.anthropic.com").rstrip("/")
         self.timeout = timeout
 
-    async def generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not self.api_key:
             raise ValueError("LLM_API_KEY is required for Anthropic provider")
 
