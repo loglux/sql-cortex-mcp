@@ -244,6 +244,7 @@ async def test_ui_routes_use_latest_runtime_config(
         llm_model="gpt-5.4-mini",
         llm_base_url=None,
         openai_api_mode="chat",
+        llm_timeout_ms=60000,
         chat_history_enabled=True,
         chat_history_limit=10,
     )

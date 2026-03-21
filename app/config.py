@@ -18,6 +18,7 @@ class Config:
     llm_model: str
     llm_base_url: str | None
     openai_api_mode: str
+    llm_timeout_ms: int
     chat_history_enabled: bool
     chat_history_limit: int
 
@@ -44,6 +45,7 @@ class Config:
         llm_model = os.getenv("LLM_MODEL", "gpt-5.4-mini")
         llm_base_url: str | None = os.getenv("LLM_BASE_URL") or None
         openai_api_mode = os.getenv("OPENAI_API_MODE", "chat").lower()
+        llm_timeout_ms = int(os.getenv("LLM_TIMEOUT_MS", "60000"))
         chat_history_enabled = True
         chat_history_limit = 10
 
@@ -74,6 +76,9 @@ class Config:
             v = settings_db.get_app_setting("enable_explanations")
             if v:
                 enable_explanations = v.lower() == "true"
+            v = settings_db.get_app_setting("llm_timeout_ms")
+            if v:
+                llm_timeout_ms = int(v)
             v = settings_db.get_app_setting("chat_history_enabled")
             if v:
                 chat_history_enabled = v.lower() == "true"
@@ -108,6 +113,7 @@ class Config:
             llm_model=llm_model,
             llm_base_url=llm_base_url,
             openai_api_mode=openai_api_mode,
+            llm_timeout_ms=llm_timeout_ms,
             chat_history_enabled=chat_history_enabled,
             chat_history_limit=chat_history_limit,
         )

@@ -35,9 +35,12 @@ prompts = PromptRegistry(config)
 
 SUPPORTED_MCP_VERSIONS = {"2025-11-25", "2025-06-18", "2025-03-26"}
 
+SESSION_TTL = 600  # seconds before idle session expires
+SESSION_GC_INTERVAL = 60  # seconds between garbage collection sweeps
+SSE_KEEPALIVE_INTERVAL = 15  # seconds between SSE keepalive pings
+
 _sessions: Dict[str, Tuple[asyncio.Queue[str], float]] = {}
 _sessions_lock = asyncio.Lock()
-_session_ttl_seconds = 600
 
 
 def reload_config() -> None:
@@ -84,13 +87,13 @@ async def _enqueue(session_id: str, payload: Dict[str, Any]) -> bool:
 
 async def _gc_sessions() -> None:
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(SESSION_GC_INTERVAL)
         now = time.time()
         async with _sessions_lock:
             expired = [
                 session_id
                 for session_id, (_, last_seen) in _sessions.items()
-                if now - last_seen > _session_ttl_seconds
+                if now - last_seen > SESSION_TTL
             ]
             for session_id in expired:
                 _sessions.pop(session_id, None)
@@ -296,7 +299,7 @@ async def mcp_stream() -> Response:
         try:
             while True:
                 try:
-                    message = await asyncio.wait_for(queue.get(), timeout=15)
+                    message = await asyncio.wait_for(queue.get(), timeout=SSE_KEEPALIVE_INTERVAL)
                     yield f"event: message\ndata: {message}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"

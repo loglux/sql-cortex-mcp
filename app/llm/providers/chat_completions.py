@@ -12,10 +12,11 @@ from app.llm.base import LLMProvider
 
 
 class ChatCompletionsProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str, base_url: str | None) -> None:
+    def __init__(self, api_key: str, model: str, base_url: str | None, timeout: float = 60) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = (base_url or "https://api.openai.com").rstrip("/")
+        self.timeout = timeout
 
     async def generate(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         url = f"{self.base_url}/v1/chat/completions"
@@ -28,7 +29,7 @@ class ChatCompletionsProvider(LLMProvider):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()

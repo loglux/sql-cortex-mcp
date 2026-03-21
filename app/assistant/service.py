@@ -140,18 +140,21 @@ _PROVIDER_BASE_URLS: dict[str, str] = {
 def _build_provider(config: Config) -> LLMProvider:
     provider = config.llm_provider.lower()
     base_url = config.llm_base_url or _PROVIDER_BASE_URLS.get(provider)
+    timeout = config.llm_timeout_ms / 1000
 
     if provider == "anthropic":
         return AnthropicProvider(
             api_key=config.llm_api_key,
             model=config.llm_model,
             base_url=base_url,
+            timeout=timeout,
         )
 
     if provider == "ollama":
         return OllamaProvider(
             model=config.llm_model,
             base_url=base_url,
+            timeout=timeout,
         )
 
     # All others: OpenAI-compatible /v1/chat/completions
@@ -159,4 +162,5 @@ def _build_provider(config: Config) -> LLMProvider:
         api_key=config.llm_api_key,
         model=config.llm_model,
         base_url=base_url,
+        timeout=timeout,
     )
