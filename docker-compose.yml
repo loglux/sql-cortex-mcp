@@ -1,5 +1,6 @@
 services:
   sql-cortex-mcp:
+    container_name: sql-cortex-mcp
     build: .
     ports:
       - "8123:8000"
