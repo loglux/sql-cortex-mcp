@@ -19,7 +19,7 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             effective_limit = min(limit_override, config.limit_default)
         rows, columns, elapsed_ms, error = executor.execute(
             sql,
-            mode=config.mode,
+            mode="read-only",
             limit_default=effective_limit,
             timeout_ms=config.timeout_ms,
         )
@@ -378,10 +378,9 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 name="sql.query",
                 title="SQL Query",
                 description=(
-                    "Execute a SQL query. "
-                    f"Server mode: {config.mode}. "
-                    "In read-only mode only SELECT/WITH/EXPLAIN are allowed. "
-                    "In execute mode DDL/DML are also permitted."
+                    "Execute a read-only SQL query. "
+                    "Only SELECT, WITH, and EXPLAIN statements are allowed. "
+                    "For INSERT, UPDATE, DELETE, or DDL statements use db.apply."
                 ),
                 input_schema={
                     "type": "object",
@@ -403,8 +402,8 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                     },
                 },
                 annotations=ToolAnnotations(
-                    read_only_hint=(config.mode == "read-only"),
-                    destructive_hint=(config.mode == "execute"),
+                    read_only_hint=True,
+                    idempotent_hint=True,
                 ),
             ),
             sql_query,
@@ -413,7 +412,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="sql.schema",
                 title="SQL Schema",
-                description="Inspect database schema (tables, columns, indexes).",
+                description=(
+                    "Inspect database schema: tables, columns, types, indexes, "
+                    "and foreign keys. Read-only introspection, no data is modified."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {"table": {"type": "string"}},
@@ -430,7 +432,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="sql.explain",
                 title="SQL Explain",
-                description="Return an explain plan for a SQL query.",
+                description=(
+                    "Return the EXPLAIN plan for a SQL query. "
+                    "Read-only, does not execute the query."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {"sql": {"type": "string"}},
@@ -453,7 +458,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.design",
                 title="DB Design",
-                description="Return a desired schema JSON template for design workflows.",
+                description=(
+                    "Return a desired schema JSON template for design workflows. "
+                    "Read-only, provides a starting template for db.schema.diff."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {"domain": {"type": "string"}},
@@ -475,7 +483,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.schema.diff",
                 title="DB Schema Diff",
-                description="Compare desired schema JSON with current database schema.",
+                description=(
+                    "Compare desired schema JSON with current database schema. "
+                    "Read-only diff showing missing/extra tables, columns, and indexes."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {"desired_schema": {"type": "object"}},
@@ -503,7 +514,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.migrate.plan",
                 title="DB Migrate Plan",
-                description="Generate SQL migration plan from desired schema.",
+                description=(
+                    "Generate SQL migration statements from desired schema diff. "
+                    "Read-only planning step, does not execute any statements."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {
@@ -531,7 +545,11 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.apply",
                 title="DB Apply",
-                description="Apply a single SQL statement (DDL/DML) in execute mode.",
+                description=(
+                    "Execute a single mutating SQL statement that changes database state. "
+                    "Supports INSERT, UPDATE, DELETE, and DDL (CREATE, ALTER, DROP). "
+                    "Requires server MODE=execute. For read-only queries use sql.query."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {"sql": {"type": "string"}},
@@ -553,7 +571,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.migrate",
                 title="DB Migrate",
-                description="Apply a batch of SQL statements with optional dry-run.",
+                description=(
+                    "Apply a batch of mutating SQL statements with optional dry-run. "
+                    "Requires server MODE=execute."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {
@@ -579,7 +600,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             ToolDef(
                 name="db.migrate.plan_apply",
                 title="DB Migrate Plan Apply",
-                description="Generate a plan from desired schema and apply it.",
+                description=(
+                    "Generate a migration plan from desired schema and apply it. "
+                    "Combines db.migrate.plan + db.migrate. Requires server MODE=execute."
+                ),
                 input_schema={
                     "type": "object",
                     "properties": {
