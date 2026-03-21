@@ -56,7 +56,7 @@ class ResourceRegistry:
                     }
                 ]
             }
-        return {"error": f"Resource not found: {uri}"}
+        return None
 
 
 def _json_text(data: Any) -> str:

@@ -138,8 +138,10 @@ async def test_unknown_tool_returns_error(client: AsyncClient) -> None:
         },
     )
     assert resp.status_code == 200
-    content = resp.json()["result"]["structuredContent"]
-    assert "error" in content
+    body = resp.json()
+    assert "error" in body
+    assert body["error"]["code"] == -32602
+    assert "nonexistent.tool" in body["error"]["message"]
 
 
 async def test_tools_list_has_annotations(client: AsyncClient) -> None:

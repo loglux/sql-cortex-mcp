@@ -31,10 +31,13 @@ def test_call_known_tool() -> None:
     assert result == {"echo": "hello"}
 
 
-def test_call_unknown_tool_returns_error() -> None:
+def test_call_unknown_tool_raises_key_error() -> None:
     reg = _make_registry()
-    result = reg.call("nonexistent", {})
-    assert "error" in result
+    assert not reg.has_tool("nonexistent")
+    import pytest
+
+    with pytest.raises(KeyError):
+        reg.call("nonexistent", {})
 
 
 def test_tools_list_sorted() -> None:

@@ -37,24 +37,26 @@ class ToolRegistry:
         tools: List[Dict[str, Any]] = []
         for tool in self._defs.values():
             a = tool.annotations
-            tools.append(
-                {
-                    "name": tool.name,
-                    "title": tool.title,
-                    "description": tool.description,
-                    "inputSchema": tool.input_schema,
-                    "annotations": {
-                        "readOnlyHint": a.read_only_hint,
-                        "destructiveHint": a.destructive_hint,
-                        "idempotentHint": a.idempotent_hint,
-                        "openWorldHint": a.open_world_hint,
-                    },
-                }
-            )
+            entry: Dict[str, Any] = {
+                "name": tool.name,
+                "title": tool.title,
+                "description": tool.description,
+                "inputSchema": tool.input_schema,
+                "annotations": {
+                    "readOnlyHint": a.read_only_hint,
+                    "destructiveHint": a.destructive_hint,
+                    "idempotentHint": a.idempotent_hint,
+                    "openWorldHint": a.open_world_hint,
+                },
+            }
+            if tool.output_schema:
+                entry["outputSchema"] = tool.output_schema
+            tools.append(entry)
         tools.sort(key=lambda t: t["name"])
         return {"tools": tools}
 
+    def has_tool(self, name: str) -> bool:
+        return name in self._tools
+
     def call(self, name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        if name not in self._tools:
-            return {"error": f"Tool not found: {name}"}
         return self._tools[name](payload)

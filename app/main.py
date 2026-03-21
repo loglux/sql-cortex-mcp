@@ -186,6 +186,8 @@ async def mcp(request: Request) -> Response:
             "protocolVersion": negotiated_version,
             "capabilities": {
                 "tools": {"listChanged": False},
+                "resources": {},
+                "prompts": {},
             },
             "serverInfo": {"name": "sql-cortex-mcp", "version": "0.1.0"},
         }
@@ -220,6 +222,11 @@ async def mcp(request: Request) -> Response:
             err = _jsonrpc_error(-32602, "Missing resource uri", req_id)
             return _response(err, status_code=400)
         result = resources.read_resource(uri)
+        if result is None:
+            err = _jsonrpc_error(-32002, f"Resource not found: {uri}", req_id)
+            if session_id and await _enqueue(session_id, err):
+                return Response(status_code=202)
+            return _response(err)
         response_payload = _jsonrpc_response(result, req_id)
         if session_id and await _enqueue(session_id, response_payload):
             return Response(status_code=202)
@@ -231,6 +238,11 @@ async def mcp(request: Request) -> Response:
         if not tool_name:
             err = _jsonrpc_error(-32602, "Missing tool name", req_id)
             return _response(err, status_code=400)
+        if not registry.has_tool(tool_name):
+            err = _jsonrpc_error(-32602, f"Unknown tool: {tool_name}", req_id)
+            if session_id and await _enqueue(session_id, err):
+                return Response(status_code=202)
+            return _response(err)
         tool_result = registry.call(tool_name, arguments)
         is_error = bool(tool_result.get("error"))
         content = [
@@ -259,6 +271,11 @@ async def mcp(request: Request) -> Response:
             err = _jsonrpc_error(-32602, "Missing prompt name", req_id)
             return _response(err, status_code=400)
         result = prompts.get_prompt(name, arguments)
+        if result is None:
+            err = _jsonrpc_error(-32602, f"Unknown prompt: {name}", req_id)
+            if session_id and await _enqueue(session_id, err):
+                return Response(status_code=202)
+            return _response(err)
         response_payload = _jsonrpc_response(result, req_id)
         if session_id and await _enqueue(session_id, response_payload):
             return Response(status_code=202)

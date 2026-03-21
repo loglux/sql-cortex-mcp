@@ -50,7 +50,10 @@ class PromptRegistry:
             )
             return {
                 "messages": [
-                    {"role": "system", "content": content},
+                    {
+                        "role": "user",
+                        "content": {"type": "text", "text": content},
+                    },
                 ]
             }
 
@@ -65,8 +68,11 @@ class PromptRegistry:
             )
             return {
                 "messages": [
-                    {"role": "system", "content": content},
+                    {
+                        "role": "user",
+                        "content": {"type": "text", "text": content},
+                    },
                 ]
             }
 
-        return {"error": f"Prompt not found: {name}"}
+        return None
