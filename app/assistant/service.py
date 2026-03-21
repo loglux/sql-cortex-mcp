@@ -44,7 +44,7 @@ class AssistantService:
         schema_result = self.registry.call("sql.schema", {})
         schema_json = json.dumps(schema_result.get("schema", {}), indent=2)
 
-        db_type = _detect_db_type(self.config.db_url)
+        db_type = self.config.db_type
         system = SYSTEM_PROMPT.format(db_type=db_type, schema=schema_json)
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
@@ -92,16 +92,6 @@ def _parse_llm_response(text: str) -> Dict[str, Any]:
             except json.JSONDecodeError:
                 pass
     return {"thought": "", "sql": None, "explanation": text}
-
-
-def _detect_db_type(db_url: str) -> str:
-    if "postgresql" in db_url or "postgres" in db_url:
-        return "PostgreSQL"
-    if "mysql" in db_url:
-        return "MySQL"
-    if "sqlite" in db_url:
-        return "SQLite"
-    return "SQL"
 
 
 """

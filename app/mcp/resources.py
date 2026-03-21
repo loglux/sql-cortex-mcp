@@ -40,6 +40,7 @@ class ResourceRegistry:
             }
         if uri == "resource://config":
             config_summary = {
+                "db_type": self.config.db_type,
                 "mode": self.config.mode,
                 "limit_default": self.config.limit_default,
                 "timeout_ms": self.config.timeout_ms,

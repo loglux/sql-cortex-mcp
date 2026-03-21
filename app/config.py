@@ -118,6 +118,17 @@ class Config:
             chat_history_limit=chat_history_limit,
         )
 
+    @property
+    def db_type(self) -> str:
+        url = self.db_url.lower()
+        if "postgresql" in url or "postgres" in url:
+            return "PostgreSQL"
+        if "mysql" in url:
+            return "MySQL"
+        if "sqlite" in url:
+            return "SQLite"
+        return "SQL"
+
     @classmethod
     def from_env(cls) -> "Config":
         return cls.load()

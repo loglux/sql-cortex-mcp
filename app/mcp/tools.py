@@ -385,7 +385,8 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 name="sql.query",
                 title="SQL Query",
                 description=(
-                    "Execute a read-only SQL query. "
+                    f"Execute a read-only SQL query against {config.db_type}. "
+                    f"Use {config.db_type}-compatible syntax. "
                     "Only SELECT, WITH, and EXPLAIN statements are allowed. "
                     "For INSERT, UPDATE, DELETE, or DDL statements use db.apply."
                 ),
