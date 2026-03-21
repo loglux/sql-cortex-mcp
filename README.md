@@ -31,7 +31,7 @@ SQL Cortex MCP is a [Model Context Protocol](https://modelcontextprotocol.io) se
 ### Docker (recommended)
 
 ```bash
-git clone https://github.com/your-username/sql-cortex-mcp.git
+git clone https://github.com/loglux/sql-cortex-mcp.git
 cd sql-cortex-mcp
 docker compose up -d
 ```
@@ -41,7 +41,7 @@ Open [http://localhost:8123](http://localhost:8123) for the admin UI.
 ### Local
 
 ```bash
-git clone https://github.com/your-username/sql-cortex-mcp.git
+git clone https://github.com/loglux/sql-cortex-mcp.git
 cd sql-cortex-mcp
 python3 -m venv .venv
 source .venv/bin/activate
@@ -63,15 +63,29 @@ SSE endpoint:  http://localhost:8123/mcp (GET for Server-Sent Events)
 
 | Tool | Description |
 |---|---|
-| `sql.query` | Execute SQL queries (SELECT in read-only mode, any SQL in execute mode) |
+| `sql.query` | Execute read-only SQL queries (SELECT, WITH, EXPLAIN) |
 | `sql.schema` | Introspect tables, columns, types, and indexes |
 | `sql.explain` | Get EXPLAIN plan for a query |
 | `db.design` | Generate a desired schema template |
 | `db.schema.diff` | Compare desired schema against current database |
 | `db.migrate.plan` | Generate migration SQL from a schema diff |
-| `db.apply` | Apply a single DDL/DML statement |
+| `db.apply` | Execute a single mutating statement (INSERT, UPDATE, DELETE, DDL) |
 | `db.migrate` | Apply a batch of SQL statements |
 | `db.migrate.plan_apply` | Plan and apply migration in one call |
+
+## MCP Resources
+
+| Resource | Description |
+|---|---|
+| `resource://schema` | Current database schema (tables, columns, indexes, foreign keys) |
+| `resource://config` | Non-secret runtime configuration summary |
+
+## MCP Prompts
+
+| Prompt | Description |
+|---|---|
+| `sql.query.plan` | Generate a safe SQL query plan from a natural language question |
+| `db.design.schema` | Propose a SQL schema from a domain description |
 
 ## Admin UI
 
