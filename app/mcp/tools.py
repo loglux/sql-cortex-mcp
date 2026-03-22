@@ -458,8 +458,6 @@ def build_tools(
             return {"error": "Multi-database not enabled"}
         ctx = payload.get("_context") or {}
         sid = ctx.get("session_id")
-        if not sid:
-            return {"error": "No MCP session — db.use requires a session"}
         connection_id = payload.get("connection_id")
         connection_name = payload.get("name")
         if connection_id is None and not connection_name:
@@ -472,9 +470,17 @@ def build_tools(
             target = next((c for c in connections if c["name"] == connection_name), None)
         if not target:
             return {"error": f"Connection not found: {connection_id or connection_name}"}
-        session_mgr.set_session_db(sid, target["id"])
+        if sid:
+            # Per-session switch (SSE clients)
+            session_mgr.set_session_db(sid, target["id"])
+        else:
+            # No session (stateless clients like ChatGPT) — switch global active
+            from app import settings_db
+
+            settings_db.set_active_db_connection(target["id"])
         return {
             "ok": True,
+            "scope": "session" if sid else "global",
             "active": {
                 "id": target["id"],
                 "name": target["name"],
@@ -608,9 +614,10 @@ def build_tools(
                 name="db.use",
                 title="Switch Database",
                 description=(
-                    "Switch the active database for this MCP session. "
+                    "Switch the active database. "
                     "Provide either connection_id or name from db.list. "
-                    "Only affects this session — other sessions keep their own database."
+                    "With an MCP session, only this session is affected. "
+                    "Without a session, switches the global active database."
                 ),
                 input_schema={
                     "type": "object",
