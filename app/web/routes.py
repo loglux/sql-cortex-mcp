@@ -196,6 +196,7 @@ def build_router(
                 "config": cfg,
                 "providers": settings_db.get_all_llm_providers(),
                 "db_conn": settings_db.get_active_db_connection(),
+                "db_connections": settings_db.get_all_db_connections(),
             },
         )
 
@@ -243,6 +244,34 @@ def build_router(
         )
         if reload_config:
             reload_config()
+        return RedirectResponse("/settings?saved=db", status_code=303)
+
+    @router.post("/settings/db/add", response_class=HTMLResponse)
+    async def settings_add_db(
+        request: Request,
+        db_name: str = Form(""),
+        db_url: str = Form(""),
+        db_mode: str = Form("read-only"),
+        allow_destructive: str | None = Form(None),
+    ):
+        settings_db.save_db_connection(
+            name=db_name,
+            url=db_url,
+            mode=db_mode,
+            allow_destructive=allow_destructive is not None,
+        )
+        return RedirectResponse("/settings?saved=db", status_code=303)
+
+    @router.post("/settings/db/{connection_id}/activate", response_class=HTMLResponse)
+    async def settings_activate_db(request: Request, connection_id: int):
+        settings_db.set_active_db_connection(connection_id)
+        if reload_config:
+            reload_config()
+        return RedirectResponse("/settings?saved=db", status_code=303)
+
+    @router.post("/settings/db/{connection_id}/delete", response_class=HTMLResponse)
+    async def settings_delete_db(request: Request, connection_id: int):
+        settings_db.delete_db_connection(connection_id)
         return RedirectResponse("/settings?saved=db", status_code=303)
 
     @router.post("/settings/chat", response_class=HTMLResponse)

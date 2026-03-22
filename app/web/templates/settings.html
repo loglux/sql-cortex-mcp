@@ -44,64 +44,112 @@
 <div class="notice">Reset to environment defaults.</div>
 {% endif %}
 
-<!-- ── Database ─────────────────────────────────────────────────────────── -->
+<!-- ── Database connections ─────────────────────────────────────────────── -->
 <section class="panel" style="margin-bottom: 24px">
   <div class="panel-head">
     <div>
-      <h2>Database</h2>
-      <p>Connection string and execution safeguards.</p>
+      <h2>Database connections</h2>
+      <p>Manage database connections. The active connection is used by all tools.</p>
     </div>
     <span class="tag">{{ config.mode }}</span>
   </div>
 
-  <form method="post" action="/settings/db">
-    <div class="form-group">
-      <label class="field-label">Connection URL</label>
-      <input type="password" name="db_url" value="{{ live_db_url }}" placeholder="sqlite:///./data/dev.db"
-             onfocus="this.type='text'" onblur="this.type='password'">
-      <span class="field-hint">Changing this requires server restart.</span>
-      <div class="chips">
-        <button type="button" class="chip" onclick="setDbTemplate('sqlite:///./data/dev.db')">SQLite</button>
-        <button type="button" class="chip" onclick="setDbTemplate('postgresql://user:pass@localhost:5432/dbname')">PostgreSQL</button>
-        <button type="button" class="chip" onclick="setDbTemplate('mysql://user:pass@localhost:3306/dbname')">MySQL</button>
+  {% if db_connections %}
+  <div class="db-connection-list">
+    {% for c in db_connections %}
+    <div class="db-connection-item {% if c.is_active %}is-active{% endif %}">
+      <div class="db-connection-info">
+        <strong>{{ c.name }}</strong>
+        <span class="tag">{{ c.db_type }}</span>
+        <span class="tag">{{ c.mode }}</span>
+        {% if c.is_active %}<span class="tag tag--active">active</span>{% endif %}
+      </div>
+      <div class="db-connection-actions">
+        {% if not c.is_active %}
+        <form method="post" action="/settings/db/{{ c.id }}/activate" style="margin:0">
+          <button class="button button-sm ghost" type="submit">Activate</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/settings/db/{{ c.id }}/delete" style="margin:0"
+              onsubmit="return confirm('Delete connection {{ c.name }}?')">
+          <button class="button button-sm ghost" type="submit" style="color:var(--danger)">Delete</button>
+        </form>
       </div>
     </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
+  <details class="db-add-form" {% if not db_connections %}open{% endif %}>
+    <summary class="field-label" style="cursor:pointer; margin: 16px 0 8px">+ Add connection</summary>
+    <form method="post" action="/settings/db/add">
+      <div class="form-group">
+        <label class="field-label">Name</label>
+        <input type="text" name="db_name" placeholder="production, staging, local..." required>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Connection URL</label>
+        <input type="password" name="db_url" placeholder="sqlite:///./data/dev.db"
+               onfocus="this.type='text'" onblur="this.type='password'" required>
+        <div class="chips">
+          <button type="button" class="chip" onclick="setDbTemplate(this, 'sqlite:///./data/dev.db')">SQLite</button>
+          <button type="button" class="chip" onclick="setDbTemplate(this, 'postgresql://user:pass@localhost:5432/dbname')">PostgreSQL</button>
+          <button type="button" class="chip" onclick="setDbTemplate(this, 'mysql+pymysql://user:pass@localhost:3306/dbname')">MySQL</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="inline-grid">
+          <div>
+            <label class="field-label">Mode</label>
+            <select name="db_mode">
+              <option value="read-only">read-only</option>
+              <option value="execute">execute</option>
+            </select>
+          </div>
+        </div>
+        <label class="checkbox">
+          <input type="checkbox" name="allow_destructive">
+          <span>Allow destructive operations</span>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="button" type="submit">Add connection</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+<!-- ── Global query settings ──────────────────────────────────────────── -->
+<section class="panel" style="margin-bottom: 24px">
+  <div class="panel-head">
+    <div>
+      <h2>Query settings</h2>
+      <p>Global limits and explanations.</p>
+    </div>
+  </div>
+
+  <form method="post" action="/settings/db">
+    <input type="hidden" name="db_url" value="{{ live_db_url }}">
+    <input type="hidden" name="db_mode" value="{{ config.mode }}">
+    <input type="hidden" name="allow_destructive" value="{% if config.allow_destructive %}on{% endif %}">
     <div class="form-group">
       <div class="inline-grid">
-        <div>
-          <label class="field-label">Mode</label>
-          <select name="db_mode">
-            <option value="read-only" {% if config.mode == 'read-only' %}selected{% endif %}>read-only</option>
-            <option value="execute" {% if config.mode == 'execute' %}selected{% endif %}>execute</option>
-          </select>
-        </div>
         <div>
           <label class="field-label">Query timeout (ms)</label>
           <input type="number" name="timeout_ms" value="{{ config.timeout_ms }}" min="100" step="100">
         </div>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <div class="inline-grid">
         <div>
           <label class="field-label">Row limit</label>
           <input type="number" name="limit_default" value="{{ config.limit_default }}" min="0" max="10000">
         </div>
       </div>
       <label class="checkbox">
-        <input type="checkbox" name="allow_destructive" {% if config.allow_destructive %}checked{% endif %}>
-        <span>Allow destructive operations</span>
-      </label>
-      <label class="checkbox">
         <input type="checkbox" name="enable_explanations" {% if config.enable_explanations %}checked{% endif %}>
         <span>Enable query explanations</span>
       </label>
     </div>
-
     <div class="actions">
-      <button class="button" type="submit">Save database settings</button>
+      <button class="button" type="submit">Save query settings</button>
     </div>
   </form>
 </section>
@@ -236,10 +284,12 @@ function switchProvider(provider, btn) {
   });
 }
 
-function setDbTemplate(value) {
-  var input = document.querySelector('input[name="db_url"]');
+function setDbTemplate(btn, value) {
+  var form = btn.closest('form');
+  var input = form ? form.querySelector('input[name="db_url"]') : document.querySelector('input[name="db_url"]');
   if (!input) return;
   input.value = value;
+  input.type = 'text';
   input.focus();
 }
 

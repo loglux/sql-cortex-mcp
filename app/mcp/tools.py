@@ -3,13 +3,55 @@ from typing import Any, Dict, List, Tuple
 from app.config import Config
 from app.logging import QueryLogEntry, QueryLogger, now_iso
 from app.mcp.registry import ToolAnnotations, ToolDef
+from app.session_db import SessionDBManager
 from app.sql.executor import SQLExecutor
 from app.sql.schema import SchemaIntrospector
 
 
-def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]]:
-    executor = SQLExecutor(config.db_url)
-    introspector = SchemaIntrospector(config.db_url)
+def build_tools(
+    config: Config, logger: QueryLogger, session_mgr: SessionDBManager | None = None
+) -> List[Tuple[ToolDef, Any]]:
+    # Default executor/introspector for non-session-aware calls
+    default_executor = SQLExecutor(config.db_url)
+    default_introspector = SchemaIntrospector(config.db_url)
+
+    def _executor(payload: Dict[str, Any]) -> SQLExecutor:
+        """Return per-session executor or default."""
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        if session_mgr and sid:
+            engine = session_mgr.get_engine_for_session(sid)
+            ex = SQLExecutor.__new__(SQLExecutor)
+            ex.engine = engine
+            return ex
+        return default_executor
+
+    def _introspector(payload: Dict[str, Any]) -> SchemaIntrospector:
+        """Return per-session introspector or default."""
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        if session_mgr and sid:
+            engine = session_mgr.get_engine_for_session(sid)
+            si = SchemaIntrospector.__new__(SchemaIntrospector)
+            si.engine = engine
+            return si
+        return default_introspector
+
+    def _effective_mode(payload: Dict[str, Any]) -> str:
+        """Return per-session mode or default."""
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        if session_mgr and sid:
+            return session_mgr.get_mode(sid, config.mode)
+        return config.mode
+
+    def _db_type(payload: Dict[str, Any]) -> str:
+        """Return per-session db_type or default."""
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        if session_mgr and sid:
+            return session_mgr.get_db_type(sid)
+        return config.db_type
 
     def sql_query(payload: Dict[str, Any]) -> Dict[str, Any]:
         sql = payload.get("sql", "")
@@ -17,6 +59,7 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         effective_limit = config.limit_default
         if isinstance(limit_override, int) and limit_override > 0:
             effective_limit = min(limit_override, config.limit_default)
+        executor = _executor(payload)
         rows, columns, elapsed_ms, error = executor.execute(
             sql,
             mode="read-only",
@@ -49,12 +92,14 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
 
     def sql_schema(payload: Dict[str, Any]) -> Dict[str, Any]:
         table = payload.get("table")
+        introspector = _introspector(payload)
         schema = introspector.get_schema(table=table)
         return {"schema": schema}
 
     def sql_explain(payload: Dict[str, Any]) -> Dict[str, Any]:
         sql = payload.get("sql", "")
         plan_sql = f"EXPLAIN {sql}"
+        executor = _executor(payload)
         rows, columns, elapsed_ms, error = executor.execute(
             plan_sql,
             mode="read-only",
@@ -93,6 +138,7 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         desired = payload.get("desired_schema")
         if not isinstance(desired, dict):
             return {"error": "desired_schema must be an object"}
+        introspector = _introspector(payload)
         current = introspector.get_schema_simple()
         desired_tables = desired.get("tables", {})
         current_tables = current.get("tables", {})
@@ -228,9 +274,11 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         statements = [s.strip() for s in sql.split(";") if s.strip()]
         if len(statements) != 1:
             return {"error": "Only a single SQL statement is allowed"}
+        executor = _executor(payload)
+        mode = _effective_mode(payload)
         _, _, elapsed_ms, error = executor.execute(
             statements[0],
-            mode=config.mode,
+            mode=mode,
             limit_default=config.limit_default,
             timeout_ms=config.timeout_ms,
         )
@@ -246,8 +294,10 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         statements = [s.strip() for s in sql.split(";") if s.strip()]
         if not statements:
             return {"error": "No SQL statements found"}
-        if config.mode != "execute":
+        mode = _effective_mode(payload)
+        if mode != "execute":
             return {"error": "Migration requires MODE=execute"}
+        executor = _executor(payload)
 
         results = []
         for stmt in statements:
@@ -256,7 +306,7 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 continue
             _, _, elapsed_ms, error = executor.execute(
                 stmt,
-                mode=config.mode,
+                mode=mode,
                 limit_default=config.limit_default,
                 timeout_ms=config.timeout_ms,
             )
@@ -279,13 +329,14 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         if destructive and not config.allow_destructive:
             return {"error": "Destructive operations are disabled by config"}
 
-        diff = db_schema_diff({"desired_schema": desired})
+        diff = db_schema_diff({"desired_schema": desired, "_context": payload.get("_context")})
         if diff.get("error"):
             return diff
 
         statements: List[str] = []
         warnings: List[str] = []
         desired_tables = desired.get("tables", {})
+        executor = _executor(payload)
         dialect = executor.engine.dialect.name
 
         for table in diff.get("missing_tables", []):
@@ -369,17 +420,71 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
         desired = payload.get("desired_schema")
         destructive = bool(payload.get("destructive", False))
         dry_run = bool(payload.get("dry_run", False))
-        plan = db_migrate_plan({"desired_schema": desired, "destructive": destructive})
+        plan = db_migrate_plan(
+            {
+                "desired_schema": desired,
+                "destructive": destructive,
+                "_context": payload.get("_context"),
+            }
+        )
         if plan.get("error"):
             return plan
         sql = ";\n".join(plan.get("statements", []))
         if not sql.strip():
             return {"error": "Plan produced no statements"}
-        migrate_result = db_migrate({"sql": sql, "dry_run": dry_run})
+        migrate_result = db_migrate(
+            {"sql": sql, "dry_run": dry_run, "_context": payload.get("_context")}
+        )
         migrate_result["plan"] = plan
         return migrate_result
 
-    return [
+    # ── db.list / db.use ─────────────────────────────────────────────────────
+
+    def db_list(payload: Dict[str, Any]) -> Dict[str, Any]:
+        if not session_mgr:
+            return {"connections": [], "note": "Multi-database not enabled"}
+        connections = session_mgr.list_connections()
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        # Mark which one this session is using
+        session_conn = session_mgr.get_session_connection(sid)
+        session_conn_id = session_conn["id"] if session_conn else None
+        for c in connections:
+            c["current"] = c["id"] == session_conn_id if session_conn_id else c["is_active"]
+        return {"connections": connections}
+
+    def db_use(payload: Dict[str, Any]) -> Dict[str, Any]:
+        if not session_mgr:
+            return {"error": "Multi-database not enabled"}
+        ctx = payload.get("_context") or {}
+        sid = ctx.get("session_id")
+        if not sid:
+            return {"error": "No MCP session — db.use requires a session"}
+        connection_id = payload.get("connection_id")
+        connection_name = payload.get("name")
+        if connection_id is None and not connection_name:
+            return {"error": "Provide connection_id or name"}
+        connections = session_mgr.list_connections()
+        target = None
+        if connection_id is not None:
+            target = next((c for c in connections if c["id"] == connection_id), None)
+        elif connection_name:
+            target = next((c for c in connections if c["name"] == connection_name), None)
+        if not target:
+            return {"error": f"Connection not found: {connection_id or connection_name}"}
+        session_mgr.set_session_db(sid, target["id"])
+        return {
+            "ok": True,
+            "active": {
+                "id": target["id"],
+                "name": target["name"],
+                "db_type": target["db_type"],
+                "mode": target["mode"],
+                "host": target["host"],
+            },
+        }
+
+    tools: list[tuple[ToolDef, Any]] = [
         (
             ToolDef(
                 name="sql.query",
@@ -461,6 +566,68 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
                 annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True),
             ),
             sql_explain,
+        ),
+        (
+            ToolDef(
+                name="db.list",
+                title="List Databases",
+                description=(
+                    "List all registered database connections. "
+                    "Shows name, type, host, mode, and which one is "
+                    "currently active for this session."
+                ),
+                input_schema={"type": "object", "properties": {}},
+                output_schema={
+                    "type": "object",
+                    "properties": {
+                        "connections": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "integer"},
+                                    "name": {"type": "string"},
+                                    "db_type": {"type": "string"},
+                                    "mode": {"type": "string"},
+                                    "host": {"type": "string"},
+                                    "is_active": {"type": "boolean"},
+                                    "current": {"type": "boolean"},
+                                },
+                            },
+                        },
+                    },
+                },
+                annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True),
+            ),
+            db_list,
+        ),
+        (
+            ToolDef(
+                name="db.use",
+                title="Switch Database",
+                description=(
+                    "Switch the active database for this MCP session. "
+                    "Provide either connection_id or name from db.list. "
+                    "Only affects this session — other sessions keep their own database."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "connection_id": {"type": "integer"},
+                        "name": {"type": "string"},
+                    },
+                },
+                output_schema={
+                    "type": "object",
+                    "properties": {
+                        "ok": {"type": "boolean"},
+                        "active": {"type": "object"},
+                        "error": {"type": "string"},
+                    },
+                },
+                annotations=ToolAnnotations(read_only_hint=False, idempotent_hint=True),
+            ),
+            db_use,
         ),
         (
             ToolDef(
@@ -636,3 +803,5 @@ def build_tools(config: Config, logger: QueryLogger) -> List[Tuple[ToolDef, Any]
             db_migrate_plan_apply,
         ),
     ]
+
+    return tools

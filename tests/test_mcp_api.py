@@ -74,7 +74,7 @@ async def test_tools_list_count(client: AsyncClient) -> None:
         },
     )
     tools = resp.json()["result"]["tools"]
-    assert len(tools) == 9
+    assert len(tools) == 11
 
 
 async def test_sql_query_select_one(client: AsyncClient) -> None:
@@ -212,6 +212,69 @@ async def test_prompts_list(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert "prompts" in resp.json()["result"]
+
+
+async def test_db_list_returns_connections(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/mcp",
+        headers=HEADERS,
+        json={
+            "jsonrpc": "2.0",
+            "id": 20,
+            "method": "tools/call",
+            "params": {"name": "db.list", "arguments": {}},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["result"]["structuredContent"]
+    assert "connections" in result
+
+
+async def test_db_use_without_session_fails(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/mcp",
+        headers=HEADERS,
+        json={
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {"name": "db.use", "arguments": {"name": "nonexistent"}},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["result"]["structuredContent"]
+    # No MCP session header → should get an error or "not found"
+    assert "error" in result
+
+
+async def test_db_use_unknown_name_fails(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/mcp",
+        headers={**HEADERS, "MCP-Session-Id": "test-session-123"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 22,
+            "method": "tools/call",
+            "params": {"name": "db.use", "arguments": {"name": "no-such-db"}},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["result"]["structuredContent"]
+    assert "error" in result
+    assert "not found" in result["error"].lower()
+
+
+async def test_tools_list_has_db_list_and_db_use(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/mcp",
+        headers=HEADERS,
+        json={"jsonrpc": "2.0", "id": 23, "method": "tools/list"},
+    )
+    tools = {t["name"]: t for t in resp.json()["result"]["tools"]}
+    assert "db.list" in tools
+    assert "db.use" in tools
+    assert tools["db.list"]["annotations"]["readOnlyHint"] is True
+    assert tools["db.use"]["annotations"]["readOnlyHint"] is False
 
 
 async def test_settings_models_endpoint_uses_runtime_provider_state(

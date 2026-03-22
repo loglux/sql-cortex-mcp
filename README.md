@@ -68,6 +68,8 @@ SSE endpoint:  http://localhost:8123/mcp (GET for Server-Sent Events)
 | `sql.query` | Execute read-only SQL queries (SELECT, WITH, EXPLAIN, SHOW, DESCRIBE) |
 | `sql.schema` | Introspect tables, columns, types, and indexes |
 | `sql.explain` | Get EXPLAIN plan for a query |
+| `db.list` | List registered database connections (name, type, host, mode) |
+| `db.use` | Switch active database for this MCP session |
 | `db.design` | Generate a desired schema template |
 | `db.schema.diff` | Compare desired schema against current database |
 | `db.migrate.plan` | Generate migration SQL from a schema diff |

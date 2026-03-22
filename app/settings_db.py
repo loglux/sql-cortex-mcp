@@ -195,6 +195,32 @@ def get_active_llm_provider() -> dict | None:
 # ── DB connection ─────────────────────────────────────────────────────────────
 
 
+def get_all_db_connections() -> list[dict]:
+    """Return all registered DB connections (decrypted)."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM db_connections ORDER BY is_active DESC, id ASC"
+        ).fetchall()
+    result = []
+    for row in rows:
+        d = dict(row)
+        if d.get("url"):
+            d["url"] = decrypt(d["url"])
+        result.append(d)
+    return result
+
+
+def get_db_connection(connection_id: int) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM db_connections WHERE id = ?", (connection_id,)).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    if d.get("url"):
+        d["url"] = decrypt(d["url"])
+    return d
+
+
 def get_active_db_connection() -> dict | None:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM db_connections WHERE is_active = 1").fetchone()
@@ -206,23 +232,90 @@ def get_active_db_connection() -> dict | None:
     return d
 
 
+def save_db_connection(
+    name: str = "",
+    url: str = "",
+    mode: str = "read-only",
+    allow_destructive: bool = False,
+    connection_id: int | None = None,
+) -> int:
+    """Create or update a DB connection. Returns the connection id."""
+    now = datetime.now(timezone.utc).isoformat()
+    db_type = _detect_db_type(url)
+    with _connect() as conn:
+        if connection_id:
+            existing = conn.execute(
+                "SELECT url FROM db_connections WHERE id = ?", (connection_id,)
+            ).fetchone()
+            new_url = encrypt(url) if url else (existing["url"] if existing else "")
+            conn.execute(
+                "UPDATE db_connections SET name=?, db_type=?, url=?, mode=?, allow_destructive=?"
+                " WHERE id=?",
+                (name or "default", db_type, new_url, mode, int(allow_destructive), connection_id),
+            )
+            return connection_id
+        else:
+            cur = conn.execute(
+                "INSERT INTO db_connections"
+                " (name, db_type, url, mode, allow_destructive, is_active, created_at)"
+                " VALUES (?,?,?,?,?,0,?)",
+                (
+                    name or "default",
+                    db_type,
+                    encrypt(url) if url else "",
+                    mode,
+                    int(allow_destructive),
+                    now,
+                ),
+            )
+            return cur.lastrowid
+
+
+def set_active_db_connection(connection_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE db_connections SET is_active = 0")
+        conn.execute("UPDATE db_connections SET is_active = 1 WHERE id = ?", (connection_id,))
+
+
+def delete_db_connection(connection_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM db_connections WHERE id = ?", (connection_id,))
+
+
 def save_db_settings(url: str = "", mode: str = "", allow_destructive: bool = False) -> None:
+    """Legacy: save settings for the active connection (or create one)."""
     now = datetime.now(timezone.utc).isoformat()
     with _connect() as conn:
         existing = conn.execute("SELECT id, url FROM db_connections WHERE is_active = 1").fetchone()
         if existing:
             new_url = encrypt(url) if url else (existing["url"] or "")
             conn.execute(
-                "UPDATE db_connections SET url=?, mode=?, allow_destructive=? WHERE is_active=1",
-                (new_url, mode or "read-only", int(allow_destructive)),
+                "UPDATE db_connections SET url=?, mode=?, allow_destructive=?, db_type=?"
+                " WHERE is_active=1",
+                (new_url, mode or "read-only", int(allow_destructive), _detect_db_type(url)),
             )
         else:
             conn.execute(
                 "INSERT INTO db_connections"
                 " (name, db_type, url, mode, allow_destructive, is_active, created_at)"
-                " VALUES ('default','sqlite',?,?,?,1,?)",
-                (encrypt(url) if url else "", mode or "read-only", int(allow_destructive), now),
+                " VALUES ('default',?,?,?,?,1,?)",
+                (
+                    _detect_db_type(url),
+                    encrypt(url) if url else "",
+                    mode or "read-only",
+                    int(allow_destructive),
+                    now,
+                ),
             )
+
+
+def _detect_db_type(url: str) -> str:
+    url_lower = url.lower()
+    if "postgresql" in url_lower or "postgres" in url_lower:
+        return "postgresql"
+    if "mysql" in url_lower:
+        return "mysql"
+    return "sqlite"
 
 
 def get_app_setting(key: str, default: str = "") -> str:

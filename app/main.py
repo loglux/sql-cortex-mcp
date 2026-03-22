@@ -15,15 +15,19 @@ from app.mcp.prompts import PromptRegistry
 from app.mcp.registry import ToolRegistry
 from app.mcp.resources import ResourceRegistry
 from app.mcp.tools import build_tools
+from app.session_db import SessionDBManager
 from app.web.routes import build_router
 
 logger = QueryLogger()
+session_db_mgr = SessionDBManager("")
 
 
 def _build_app_state() -> tuple[Config, ToolRegistry]:
+    global session_db_mgr
     cfg = Config.load()
+    session_db_mgr = SessionDBManager(cfg.db_url)
     reg = ToolRegistry()
-    for tool_def, handler in build_tools(cfg, logger):
+    for tool_def, handler in build_tools(cfg, logger, session_db_mgr):
         reg.register(tool_def, handler)
     return cfg, reg
 
@@ -75,6 +79,7 @@ async def _get_session(session_id: str) -> asyncio.Queue[str] | None:
 async def _remove_session(session_id: str) -> None:
     async with _sessions_lock:
         _sessions.pop(session_id, None)
+    session_db_mgr.clear_session(session_id)
 
 
 async def _enqueue(session_id: str, payload: Dict[str, Any]) -> bool:
@@ -97,6 +102,7 @@ async def _gc_sessions() -> None:
             ]
             for session_id in expired:
                 _sessions.pop(session_id, None)
+                session_db_mgr.clear_session(session_id)
 
 
 @asynccontextmanager
@@ -246,6 +252,7 @@ async def mcp(request: Request) -> Response:
             if session_id and await _enqueue(session_id, err):
                 return Response(status_code=202)
             return _response(err)
+        arguments["_context"] = {"session_id": session_id}
         tool_result = registry.call(tool_name, arguments)
         is_error = bool(tool_result.get("error"))
         content = [
