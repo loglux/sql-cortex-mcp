@@ -22,7 +22,8 @@
 
 SQL Cortex MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that exposes SQL databases as tools for AI agents. It sits between your LLM and your database, providing:
 
-- **9 MCP tools** — query, schema introspection, explain plans, migrations, and more
+- **11 MCP tools** — query, schema introspection, explain plans, migrations, multi-DB switching
+- **Multi-database** — manage multiple connections, per-session switching via `db.list`/`db.use`
 - **Policy enforcement** — read-only mode, query allowlists, row limits, timeouts
 - **Admin UI** — web dashboard with query sandbox, schema browser, chat assistant, settings
 - **Multi-provider LLM** — OpenAI, Anthropic, DeepSeek, Ollama, Gemini, Groq, Mistral
@@ -122,9 +123,9 @@ The built-in web UI provides:
 - **Dashboard** — server status, quick actions
 - **Query** — SQL sandbox with syntax highlighting and result tables
 - **Schema** — browse tables, columns, indexes
-- **Chat** — natural language to SQL via LLM (multiple sessions, persistent history)
+- **Chat** — natural language to SQL via LLM (multiple sessions, persistent history, per-session DB binding)
 - **Logs** — query audit trail
-- **Settings** — configure DB connection, LLM providers, runtime parameters
+- **Settings** — manage multiple DB connections, LLM providers, runtime parameters
 
 | Sandbox | Settings |
 |---|---|
@@ -148,6 +149,7 @@ The built-in web UI provides:
 | `LLM_API_KEY` | — | API key for the LLM provider |
 | `LLM_MODEL` | `gpt-5.4-mini` | Model name |
 | `LLM_BASE_URL` | — | Custom base URL for the provider |
+| `LLM_TIMEOUT_MS` | `60000` | LLM request timeout in milliseconds |
 
 Settings changed via the admin UI override environment variables at runtime and persist across restarts.
 
@@ -195,6 +197,7 @@ app/
   main.py            — FastAPI app, MCP JSON-RPC router
   config.py          — Config from env vars + settings DB
   settings_db.py     — SQLite persistence (providers, settings, chat)
+  session_db.py      — Per-session DB switching (db.list/db.use)
   mcp/               — MCP protocol: tools, resources, prompts
   sql/               — SQL executor, policy engine, schema introspection
   llm/               — LLM providers (OpenAI-compat, Anthropic, Ollama)
