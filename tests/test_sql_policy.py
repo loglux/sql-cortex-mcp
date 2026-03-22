@@ -38,6 +38,21 @@ class SqlPolicyTests(unittest.TestCase):
             is_allowed("SELECT '-- drop table users' AS note FROM users", mode="read-only")
         )
 
+    def test_allows_show_tables_in_read_only(self) -> None:
+        self.assertTrue(is_allowed("SHOW TABLES", mode="read-only"))
+
+    def test_allows_show_databases_in_read_only(self) -> None:
+        self.assertTrue(is_allowed("SHOW DATABASES", mode="read-only"))
+
+    def test_allows_show_create_table_in_read_only(self) -> None:
+        self.assertTrue(is_allowed("SHOW CREATE TABLE users", mode="read-only"))
+
+    def test_allows_describe_in_read_only(self) -> None:
+        self.assertTrue(is_allowed("DESCRIBE users", mode="read-only"))
+
+    def test_allows_desc_in_read_only(self) -> None:
+        self.assertTrue(is_allowed("DESC users", mode="read-only"))
+
     def test_execute_mode_allows_single_write_statement(self) -> None:
         self.assertTrue(is_allowed("DELETE FROM users WHERE id = 1", mode="execute"))
 

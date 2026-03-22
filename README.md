@@ -63,7 +63,7 @@ SSE endpoint:  http://localhost:8123/mcp (GET for Server-Sent Events)
 
 | Tool | Description |
 |---|---|
-| `sql.query` | Execute read-only SQL queries (SELECT, WITH, EXPLAIN) |
+| `sql.query` | Execute read-only SQL queries (SELECT, WITH, EXPLAIN, SHOW, DESCRIBE) |
 | `sql.schema` | Introspect tables, columns, types, and indexes |
 | `sql.explain` | Get EXPLAIN plan for a query |
 | `db.design` | Generate a desired schema template |
@@ -84,8 +84,32 @@ SSE endpoint:  http://localhost:8123/mcp (GET for Server-Sent Events)
 
 | Prompt | Description |
 |---|---|
+| `sql.assistant.role` | System prompt with rules for correct tool usage, dialect detection, and schema discovery |
 | `sql.query.plan` | Generate a safe SQL query plan from a natural language question |
 | `db.design.schema` | Propose a SQL schema from a domain description |
+
+> **Note:** ChatGPT's MCP connector supports only tools, not prompts or resources.
+> If you use ChatGPT, paste the following into your Custom Instructions:
+
+<details>
+<summary>Recommended system prompt for ChatGPT</summary>
+
+```
+You are a database assistant connected to a live SQL database via MCP
+(Model Context Protocol).
+
+Rules:
+1. ALWAYS call sql.schema first at the start of each conversation to get
+   the current schema. Never assume or cache table names from previous messages.
+2. Read the sql.query tool description — it tells you the database engine
+   (SQLite, MySQL, PostgreSQL). Use the correct SQL dialect.
+3. For read queries use sql.query. For writes use db.apply. Never mix them.
+4. If a query fails with a syntax error, check the dialect and retry
+   with correct syntax.
+5. Prefer sql.schema over SHOW TABLES / information_schema for discovering tables.
+6. When presenting results, format them as clean tables. Keep explanations concise.
+```
+</details>
 
 ## Admin UI
 

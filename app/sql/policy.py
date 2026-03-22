@@ -1,6 +1,6 @@
 import re
 
-READ_ONLY_PREFIXES = ("select", "with", "explain")
+READ_ONLY_PREFIXES = ("select", "with", "explain", "show", "describe", "desc")
 READ_QUERY_PREFIXES = ("select", "with")
 
 
@@ -118,6 +118,10 @@ def _is_explain_readonly(normalized_sql: str) -> bool:
 def _is_read_only_core(normalized_sql: str) -> bool:
     if normalized_sql.startswith("explain"):
         return _is_explain_readonly(normalized_sql)
+
+    # MySQL/PostgreSQL metadata commands are always read-only
+    if normalized_sql.startswith(("show", "describe", "desc ")):
+        return True
 
     if not normalized_sql.startswith(("select", "with")):
         return False
