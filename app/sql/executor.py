@@ -25,6 +25,21 @@ class SQLExecutor:
     def __init__(self, db_url: str) -> None:
         self.engine: Engine = create_engine(db_url)
 
+    def get_version(self) -> str:
+        """Return the database server version string."""
+        dialect = self.engine.dialect.name
+        try:
+            with self.engine.connect() as conn:
+                if dialect == "sqlite":
+                    row = conn.execute(text("SELECT sqlite_version()")).fetchone()
+                else:
+                    row = conn.execute(text("SELECT VERSION()")).fetchone()
+                if row:
+                    return str(row[0])
+        except SQLAlchemyError:
+            pass
+        return ""
+
     def execute(
         self,
         sql: str,

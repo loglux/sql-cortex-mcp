@@ -150,6 +150,15 @@ class Config:
             return "SQLite"
         return "SQL"
 
+    @property
+    def db_version(self) -> str:
+        from app.sql.executor import SQLExecutor
+
+        try:
+            return SQLExecutor(self.db_url).get_version()
+        except Exception:
+            return ""
+
     @classmethod
     def from_env(cls) -> "Config":
         return cls.load()

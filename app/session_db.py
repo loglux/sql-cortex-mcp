@@ -58,6 +58,16 @@ class SessionDBManager:
         url = self.get_db_url(session_id)
         return self._get_engine(url)
 
+    def get_db_version(self, session_id: str | None) -> str:
+        """Return the DB version string for a session's active connection."""
+        from app.sql.executor import SQLExecutor
+
+        url = self.get_db_url(session_id)
+        try:
+            return SQLExecutor(url).get_version()
+        except Exception:
+            return ""
+
     def get_db_type(self, session_id: str | None) -> str:
         """Return the DB type name for a session's active connection."""
         url = self.get_db_url(session_id).lower()
@@ -78,15 +88,25 @@ class SessionDBManager:
 
     def list_connections(self) -> list[dict[str, Any]]:
         """Return all registered connections with metadata (no secrets)."""
+        from app.sql.executor import SQLExecutor
+
         connections = settings_db.get_all_db_connections()
         result = []
         for c in connections:
             url = c.get("url", "")
+            version = ""
+            if url:
+                try:
+                    ex = SQLExecutor(url)
+                    version = ex.get_version()
+                except Exception:
+                    pass
             result.append(
                 {
                     "id": c["id"],
                     "name": c.get("name", ""),
                     "db_type": c.get("db_type", ""),
+                    "version": version,
                     "mode": c.get("mode", "read-only"),
                     "is_active": bool(c.get("is_active")),
                     "host": _extract_host(url),

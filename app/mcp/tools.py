@@ -490,7 +490,8 @@ def build_tools(
                 name="sql.query",
                 title="SQL Query",
                 description=(
-                    f"Execute a read-only SQL query against {config.db_type}. "
+                    f"Execute a read-only SQL query against {config.db_type}"
+                    f"{' ' + config.db_version if config.db_version else ''}. "
                     f"Use {config.db_type}-compatible syntax. "
                     "SELECT, WITH, EXPLAIN, SHOW, and DESCRIBE statements are allowed. "
                     "For INSERT, UPDATE, DELETE, or DDL statements use db.apply."
@@ -588,6 +589,7 @@ def build_tools(
                                     "id": {"type": "integer"},
                                     "name": {"type": "string"},
                                     "db_type": {"type": "string"},
+                                    "version": {"type": "string"},
                                     "mode": {"type": "string"},
                                     "host": {"type": "string"},
                                     "is_active": {"type": "boolean"},
