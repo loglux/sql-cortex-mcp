@@ -1,4 +1,6 @@
+import datetime
 import time
+from decimal import Decimal
 from typing import Any, Callable, Dict, List, Tuple
 
 from sqlalchemy import create_engine, text
@@ -6,6 +8,17 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.sql.policy import enforce_limit, is_allowed, is_read_query
+
+
+def _coerce_value(val: Any) -> Any:
+    """Convert DB-specific types to JSON-safe Python primitives."""
+    if isinstance(val, Decimal):
+        return float(val)
+    if isinstance(val, (datetime.date, datetime.datetime)):
+        return val.isoformat()
+    if isinstance(val, bytes):
+        return val.decode("utf-8", errors="replace")
+    return val
 
 
 class SQLExecutor:
@@ -36,7 +49,9 @@ class SQLExecutor:
                 if result.returns_rows:
                     rows = result.fetchall()
                     columns = list(result.keys())
-                    parsed = [dict(zip(columns, row)) for row in rows]
+                    parsed = [
+                        {col: _coerce_value(val) for col, val in zip(columns, row)} for row in rows
+                    ]
                     return parsed, columns, elapsed_ms, None
         except SQLAlchemyError as exc:
             elapsed_ms = int((time.time() - start) * 1000)
