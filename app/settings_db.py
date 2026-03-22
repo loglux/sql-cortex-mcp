@@ -294,11 +294,14 @@ def save_db_settings(url: str = "", mode: str = "", allow_destructive: bool = Fa
         existing = conn.execute("SELECT id, url FROM db_connections WHERE is_active = 1").fetchone()
         if existing:
             new_url = encrypt(url) if url else (existing["url"] or "")
-            conn.execute(
-                "UPDATE db_connections SET url=?, mode=?, allow_destructive=?, db_type=?"
-                " WHERE is_active=1",
-                (new_url, mode or "read-only", int(allow_destructive), _detect_db_type(url)),
-            )
+            # Only update db_type if a new URL was provided
+            updates = "UPDATE db_connections SET url=?, mode=?, allow_destructive=?"
+            params: list = [new_url, mode or "read-only", int(allow_destructive)]
+            if url:
+                updates += ", db_type=?"
+                params.append(_detect_db_type(url))
+            updates += " WHERE is_active=1"
+            conn.execute(updates, params)
         else:
             conn.execute(
                 "INSERT INTO db_connections"
