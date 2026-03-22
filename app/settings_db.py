@@ -101,9 +101,10 @@ def init_db() -> None:
             );
 
             CREATE TABLE IF NOT EXISTS chat_sessions (
-                id         TEXT PRIMARY KEY,
-                name       TEXT DEFAULT '',
-                created_at TEXT
+                id                TEXT PRIMARY KEY,
+                name              TEXT DEFAULT '',
+                db_connection_id  INTEGER,
+                created_at        TEXT
             );
 
             CREATE TABLE IF NOT EXISTS chat_messages (
@@ -115,6 +116,10 @@ def init_db() -> None:
                 FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
             );
         """)
+        # Migration: add db_connection_id to chat_sessions if missing
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(chat_sessions)").fetchall()]
+        if "db_connection_id" not in cols:
+            conn.execute("ALTER TABLE chat_sessions ADD COLUMN db_connection_id INTEGER")
 
 
 # ── LLM providers ─────────────────────────────────────────────────────────────
@@ -337,15 +342,16 @@ def save_app_settings(settings: dict[str, str]) -> None:
 # ── Chat sessions ────────────────────────────────────────────────────────────
 
 
-def create_chat_session(name: str = "") -> str:
+def create_chat_session(name: str = "", db_connection_id: int | None = None) -> str:
     import uuid
 
     session_id = str(uuid.uuid4())[:8]
     now = datetime.now(timezone.utc).isoformat()
     with _connect() as conn:
         conn.execute(
-            "INSERT INTO chat_sessions (id, name, created_at) VALUES (?, ?, ?)",
-            (session_id, name or f"Chat {now[:10]}", now),
+            "INSERT INTO chat_sessions (id, name, db_connection_id, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            (session_id, name or f"Chat {now[:10]}", db_connection_id, now),
         )
     return session_id
 

@@ -354,6 +354,11 @@ def build_router(
             else:
                 messages.append(m)
 
+        # Resolve bound DB connection for this session
+        session_db_conn = None
+        if active_session and active_session.get("db_connection_id"):
+            session_db_conn = settings_db.get_db_connection(active_session["db_connection_id"])
+
         return templates.TemplateResponse(
             request,
             "chat.html",
@@ -367,12 +372,15 @@ def build_router(
                 "session_id": session_id,
                 "messages": messages,
                 "chat_history_enabled": cfg.chat_history_enabled,
+                "session_db": session_db_conn,
             },
         )
 
     @router.post("/chat/new", response_class=HTMLResponse)
     def chat_new(request: Request):
-        sid = settings_db.create_chat_session()
+        active_conn = settings_db.get_active_db_connection()
+        conn_id = active_conn["id"] if active_conn else None
+        sid = settings_db.create_chat_session(db_connection_id=conn_id)
         return RedirectResponse(f"/chat/{sid}", status_code=303)
 
     @router.post("/chat/{session_id}/delete", response_class=HTMLResponse)
@@ -395,9 +403,11 @@ def build_router(
         cfg = current_config()
         registry = current_registry()
 
-        # Auto-create session if none
+        # Auto-create session if none — bind to current active DB
         if not session_id:
-            session_id = settings_db.create_chat_session()
+            active_conn = settings_db.get_active_db_connection()
+            conn_id = active_conn["id"] if active_conn else None
+            session_id = settings_db.create_chat_session(db_connection_id=conn_id)
 
         msg_lower = message.strip().lower()
 
@@ -405,10 +415,52 @@ def build_router(
             """Save assistant response as JSON for rich replay."""
             settings_db.add_chat_message(sid, "assistant", json.dumps(data, ensure_ascii=False))
 
+        # Resolve session-bound DB for slash commands
+        session_data = settings_db.get_chat_session(session_id)
+        db_url_override = None
+        db_type_override = None
+        if session_data and session_data.get("db_connection_id"):
+            bound_conn = settings_db.get_db_connection(session_data["db_connection_id"])
+            if bound_conn and bound_conn.get("url"):
+                db_url_override = bound_conn["url"]
+                db_type_override = (bound_conn.get("db_type") or "sql").capitalize()
+
+        def _session_call(tool: str, args: dict) -> dict:
+            """Call a tool using session-bound DB if available."""
+            if db_url_override and tool in ("sql.query", "sql.schema", "sql.explain"):
+                from app.sql.executor import SQLExecutor
+                from app.sql.schema import SchemaIntrospector
+
+                if tool == "sql.schema":
+                    si = SchemaIntrospector(db_url_override)
+                    return {"schema": si.get_schema(table=args.get("table"))}
+                ex = SQLExecutor(db_url_override)
+                sql_text = args.get("sql", "")
+                if tool == "sql.explain":
+                    sql_text = f"EXPLAIN {sql_text}"
+                rows, columns, elapsed_ms, error = ex.execute(
+                    sql_text,
+                    mode="read-only",
+                    limit_default=cfg.limit_default,
+                    timeout_ms=cfg.timeout_ms,
+                )
+                result = {
+                    "rows": rows,
+                    "columns": columns,
+                    "row_count": len(rows),
+                    "elapsed_ms": elapsed_ms,
+                }
+                if tool == "sql.explain":
+                    result = {"plan": rows, "columns": columns, "elapsed_ms": elapsed_ms}
+                if error:
+                    result["error"] = error
+                return result
+            return registry.call(tool, args)
+
         # /run — execute SQL directly
         if msg_lower.startswith("/run "):
             sql = message.strip()[5:].strip()
-            result = registry.call("sql.query", {"sql": sql})
+            result = _session_call("sql.query", {"sql": sql})
             ctx = {"sql": sql, "query_result": result, "is_direct": True}
             settings_db.add_chat_message(session_id, "user", message)
             _save_assistant(session_id, ctx)
@@ -421,7 +473,7 @@ def build_router(
         # /explain — EXPLAIN plan
         if msg_lower.startswith("/explain "):
             sql = message.strip()[9:].strip()
-            result = registry.call("sql.explain", {"sql": sql})
+            result = _session_call("sql.explain", {"sql": sql})
             ctx = {"query_result": result, "is_direct": True, "command": "explain"}
             settings_db.add_chat_message(session_id, "user", message)
             _save_assistant(session_id, ctx)
@@ -433,7 +485,7 @@ def build_router(
 
         # /schema — full schema with ER diagram
         if msg_lower == "/schema":
-            result = registry.call("sql.schema", {})
+            result = _session_call("sql.schema", {})
             schema_data = result.get("schema", {})
             mermaid = _build_mermaid_er(schema_data)
             ctx = {
@@ -452,7 +504,7 @@ def build_router(
 
         # /tables — list table names
         if msg_lower == "/tables":
-            result = registry.call("sql.schema", {})
+            result = _session_call("sql.schema", {})
             tables = list(result.get("schema", {}).keys())
             ctx = {"tables": tables, "is_direct": True, "command": "tables"}
             settings_db.add_chat_message(session_id, "user", message)
@@ -484,7 +536,10 @@ def build_router(
                 else:
                     history.append(h)
 
-        result = await current_assistant().chat(message, history)
+        assistant = AssistantService(
+            cfg, registry, db_url=db_url_override, db_type=db_type_override
+        )
+        result = await assistant.chat(message, history)
 
         # Save full assistant response as JSON
         _save_assistant(

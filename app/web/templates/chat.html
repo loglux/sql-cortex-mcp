@@ -30,6 +30,9 @@
       <div>
         <h2>{{ active_session.name }}</h2>
         <span class="tag">{{ llm_provider }} / {{ llm_model }}</span>
+        {% if session_db %}
+        <span class="tag tag--active">{{ session_db.db_type }} — {{ session_db.name }}</span>
+        {% endif %}
         <span class="tag">{{ mode }}</span>
         {% if not chat_history_enabled %}
         <span class="tag">memory off</span>

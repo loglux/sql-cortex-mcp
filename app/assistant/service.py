@@ -31,20 +31,35 @@ Return SQL as plain text — no escaped quotes, no unicode escapes.
 
 
 class AssistantService:
-    def __init__(self, config: Config, registry: ToolRegistry) -> None:
+    def __init__(
+        self,
+        config: Config,
+        registry: ToolRegistry,
+        db_url: str | None = None,
+        db_type: str | None = None,
+    ) -> None:
         self.config = config
         self.registry = registry
         self.provider = _build_provider(config)
+        self._db_url = db_url
+        self._db_type = db_type
 
     async def chat(
         self,
         user_message: str,
         history: List[Dict[str, str]],
     ) -> Dict[str, Any]:
-        schema_result = self.registry.call("sql.schema", {})
-        schema_json = json.dumps(schema_result.get("schema", {}), indent=2)
+        if self._db_url:
+            from app.sql.schema import SchemaIntrospector
 
-        db_type = self.config.db_type
+            introspector = SchemaIntrospector(self._db_url)
+            schema_data = introspector.get_schema()
+            schema_json = json.dumps(schema_data, indent=2)
+        else:
+            schema_result = self.registry.call("sql.schema", {})
+            schema_json = json.dumps(schema_result.get("schema", {}), indent=2)
+
+        db_type = self._db_type or self.config.db_type
         system = SYSTEM_PROMPT.format(db_type=db_type, schema=schema_json)
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
@@ -60,9 +75,28 @@ class AssistantService:
         query_result: Dict[str, Any] | None = None
 
         if sql:
-            query_result = self.registry.call(
-                "sql.query", {"sql": sql, "limit": self.config.limit_default}
-            )
+            if self._db_url:
+                from app.sql.executor import SQLExecutor
+
+                ex = SQLExecutor(self._db_url)
+                rows, columns, elapsed_ms, error = ex.execute(
+                    sql,
+                    mode="read-only",
+                    limit_default=self.config.limit_default,
+                    timeout_ms=self.config.timeout_ms,
+                )
+                query_result = {
+                    "rows": rows,
+                    "columns": columns,
+                    "row_count": len(rows),
+                    "elapsed_ms": elapsed_ms,
+                }
+                if error:
+                    query_result["error"] = error
+            else:
+                query_result = self.registry.call(
+                    "sql.query", {"sql": sql, "limit": self.config.limit_default}
+                )
             if query_result.get("error"):
                 parsed["error"] = query_result["error"]
 
