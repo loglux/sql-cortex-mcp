@@ -252,5 +252,5 @@ async def test_ui_routes_use_latest_runtime_config(
     monkeypatch.setattr(main_module, "registry", ToolRegistry())
     resp = await client.get("/")
     assert resp.status_code == 200
-    assert "sqlite:///./runtime-refresh.db" in resp.text
+    assert "SQLite" in resp.text and "runtime-refresh.db" in resp.text
     assert "execute" in resp.text

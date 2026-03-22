@@ -16,6 +16,12 @@
 
 ---
 
+## Screenshots
+
+| Overview | Sandbox | Settings |
+|---|---|---|
+| ![Overview](docs/screenshots/overview.png) | ![Sandbox](docs/screenshots/sandbox.png) | ![Settings](docs/screenshots/settings.png) |
+
 ## What is this?
 
 SQL Cortex MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that exposes SQL databases as tools for AI agents. It sits between your LLM and your database, providing:
@@ -158,6 +164,7 @@ Settings changed via the admin UI override environment variables at runtime and 
 ### Supported databases
 
 - **SQLite** — built-in, no extra dependencies
+- **MySQL** — via `pymysql` (included in requirements)
 - **PostgreSQL** — via `psycopg2` (included in requirements)
 
 ## Development

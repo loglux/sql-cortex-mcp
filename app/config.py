@@ -119,6 +119,27 @@ class Config:
         )
 
     @property
+    def db_display_name(self) -> str:
+        """Human-readable DB identifier without credentials."""
+        from urllib.parse import urlparse
+
+        try:
+            # Normalize: strip driver prefix (mysql+pymysql → mysql)
+            url = self.db_url
+            if ":///" in url:
+                # SQLite-style: sqlite:///./data/dev.db
+                return f"{self.db_type} — {url.split('///')[-1]}"
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+            port = f":{parsed.port}" if parsed.port else ""
+            db_name = parsed.path.lstrip("/") if parsed.path else ""
+            if host:
+                return f"{self.db_type} — {db_name}@{host}{port}"
+            return self.db_type
+        except Exception:
+            return self.db_type
+
+    @property
     def db_type(self) -> str:
         url = self.db_url.lower()
         if "postgresql" in url or "postgres" in url:

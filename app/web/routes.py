@@ -47,7 +47,7 @@ def build_router(
             {
                 "request": request,
                 "mode": cfg.mode,
-                "db_url": cfg.db_url,
+                "db_url": cfg.db_display_name,
             },
         )
 

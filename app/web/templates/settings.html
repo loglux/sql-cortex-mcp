@@ -57,7 +57,8 @@
   <form method="post" action="/settings/db">
     <div class="form-group">
       <label class="field-label">Connection URL</label>
-      <input type="text" name="db_url" value="{{ live_db_url }}" placeholder="sqlite:///./data/dev.db">
+      <input type="password" name="db_url" value="{{ live_db_url }}" placeholder="sqlite:///./data/dev.db"
+             onfocus="this.type='text'" onblur="this.type='password'">
       <span class="field-hint">Changing this requires server restart.</span>
       <div class="chips">
         <button type="button" class="chip" onclick="setDbTemplate('sqlite:///./data/dev.db')">SQLite</button>
