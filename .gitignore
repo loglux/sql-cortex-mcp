@@ -48,8 +48,9 @@ PRE_COMMIT_SETUP.md
 # Node
 node_modules/
 
-# Screenshots / temp images
+# Screenshots / temp images (except docs/)
 *.png
+!docs/screenshots/*.png
 
 # SQLite dev databases (outside data/)
 *.db
