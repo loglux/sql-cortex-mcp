@@ -16,11 +16,7 @@
 
 ---
 
-## Screenshots
-
-| Overview | Sandbox | Settings |
-|---|---|---|
-| ![Overview](docs/screenshots/overview.png) | ![Sandbox](docs/screenshots/sandbox.png) | ![Settings](docs/screenshots/settings.png) |
+![Overview](docs/screenshots/overview.png)
 
 ## What is this?
 
@@ -127,6 +123,10 @@ The built-in web UI provides:
 - **Chat** — natural language to SQL via LLM (multiple sessions, persistent history)
 - **Logs** — query audit trail
 - **Settings** — configure DB connection, LLM providers, runtime parameters
+
+| Sandbox | Settings |
+|---|---|
+| ![Sandbox](docs/screenshots/sandbox.png) | ![Settings](docs/screenshots/settings.png) |
 
 ## Configuration
 
