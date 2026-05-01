@@ -1,5 +1,8 @@
 import asyncio
+import collections
 import json
+import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager, suppress
@@ -20,6 +23,39 @@ from app.session_db import SessionDBManager
 from app.web.routes import build_router
 
 load_dotenv()
+
+# ── Rate limiting ──────────────────────────────────────────────────────────────
+# Disabled automatically when running under pytest; configure via env vars.
+_testing = "pytest" in sys.modules
+_MCP_RATE_LIMIT = 0 if _testing else int(os.getenv("MCP_RATE_LIMIT", "60"))
+_SSE_MAX_PER_IP = 0 if _testing else int(os.getenv("SSE_MAX_PER_IP", "10"))
+
+
+class _SlidingWindowLimiter:
+    """Async-safe sliding window rate limiter. limit=0 disables checking."""
+
+    def __init__(self, limit: int, window: int) -> None:
+        self._limit = limit
+        self._window = window
+        self._hits: dict[str, collections.deque[float]] = {}
+        self._lock = asyncio.Lock()
+
+    async def check(self, key: str) -> bool:
+        if not self._limit:
+            return True
+        now = time.monotonic()
+        async with self._lock:
+            dq = self._hits.setdefault(key, collections.deque())
+            cutoff = now - self._window
+            while dq and dq[0] < cutoff:
+                dq.popleft()
+            if len(dq) >= self._limit:
+                return False
+            dq.append(now)
+            return True
+
+
+_mcp_limiter = _SlidingWindowLimiter(limit=_MCP_RATE_LIMIT, window=60)
 
 logger = QueryLogger()
 session_db_mgr = SessionDBManager("")
@@ -46,7 +82,8 @@ SESSION_TTL = 600  # seconds before idle session expires
 SESSION_GC_INTERVAL = 60  # seconds between garbage collection sweeps
 SSE_KEEPALIVE_INTERVAL = 15  # seconds between SSE keepalive pings
 
-_sessions: Dict[str, Tuple[asyncio.Queue[str], float]] = {}
+_sessions: Dict[str, Tuple[asyncio.Queue[str], float, str]] = {}
+_sse_ip_counts: Dict[str, int] = {}
 _sessions_lock = asyncio.Lock()
 _reload_lock = asyncio.Lock()
 
@@ -64,10 +101,13 @@ def get_runtime_state() -> tuple[Config, ToolRegistry]:
     return config, registry
 
 
-async def _create_session() -> str:
+async def _create_session(ip: str) -> str | None:
     session_id = str(uuid.uuid4())
     async with _sessions_lock:
-        _sessions[session_id] = (asyncio.Queue(), time.time())
+        if _SSE_MAX_PER_IP and _sse_ip_counts.get(ip, 0) >= _SSE_MAX_PER_IP:
+            return None
+        _sessions[session_id] = (asyncio.Queue(), time.time(), ip)
+        _sse_ip_counts[ip] = _sse_ip_counts.get(ip, 0) + 1
     return session_id
 
 
@@ -76,14 +116,17 @@ async def _get_session(session_id: str) -> asyncio.Queue[str] | None:
         entry = _sessions.get(session_id)
         if not entry:
             return None
-        queue, _ = entry
-        _sessions[session_id] = (queue, time.time())
+        queue, _, ip = entry
+        _sessions[session_id] = (queue, time.time(), ip)
         return queue
 
 
 async def _remove_session(session_id: str) -> None:
     async with _sessions_lock:
-        _sessions.pop(session_id, None)
+        entry = _sessions.pop(session_id, None)
+        if entry:
+            ip = entry[2]
+            _sse_ip_counts[ip] = max(0, _sse_ip_counts.get(ip, 1) - 1)
     session_db_mgr.clear_session(session_id)
 
 
@@ -102,11 +145,14 @@ async def _gc_sessions() -> None:
         async with _sessions_lock:
             expired = [
                 session_id
-                for session_id, (_, last_seen) in _sessions.items()
+                for session_id, (_, last_seen, _ip) in _sessions.items()
                 if now - last_seen > SESSION_TTL
             ]
             for session_id in expired:
-                _sessions.pop(session_id, None)
+                entry = _sessions.pop(session_id, None)
+                if entry:
+                    ip = entry[2]
+                    _sse_ip_counts[ip] = max(0, _sse_ip_counts.get(ip, 1) - 1)
                 session_db_mgr.clear_session(session_id)
 
 
@@ -156,6 +202,10 @@ def _check_origin(request: Request) -> Tuple[bool, str | None]:
 
 @app.post("/mcp")
 async def mcp(request: Request) -> Response:
+    ip = request.client.host if request.client else "unknown"
+    if not await _mcp_limiter.check(ip):
+        return Response(status_code=429, content="Rate limit exceeded")
+
     ok, origin = _check_origin(request)
     if not ok:
         return Response(status_code=403, content="Invalid Origin")
@@ -307,7 +357,10 @@ async def mcp_stream(request: Request) -> Response:
     ok, _ = _check_origin(request)
     if not ok:
         return Response(status_code=403, content="Invalid Origin")
-    session_id = await _create_session()
+    ip = request.client.host if request.client else "unknown"
+    session_id = await _create_session(ip)
+    if session_id is None:
+        return Response(status_code=429, content="Too many SSE connections from this IP")
     queue = await _get_session(session_id)
 
     async def event_stream():

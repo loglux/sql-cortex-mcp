@@ -26,7 +26,7 @@ async def _clear_sessions() -> None:
 
 async def test_create_and_get_session() -> None:
     await _clear_sessions()
-    sid = await _create_session()
+    sid = await _create_session("127.0.0.1")
     assert sid
     queue = await _get_session(sid)
     assert queue is not None
@@ -40,7 +40,7 @@ async def test_get_nonexistent_session() -> None:
 
 async def test_remove_session() -> None:
     await _clear_sessions()
-    sid = await _create_session()
+    sid = await _create_session("127.0.0.1")
     await _remove_session(sid)
     queue = await _get_session(sid)
     assert queue is None
@@ -54,7 +54,7 @@ async def test_remove_nonexistent_session() -> None:
 
 async def test_enqueue_and_dequeue() -> None:
     await _clear_sessions()
-    sid = await _create_session()
+    sid = await _create_session("127.0.0.1")
     ok = await _enqueue(sid, {"test": "payload"})
     assert ok
     queue = await _get_session(sid)
@@ -70,24 +70,24 @@ async def test_enqueue_nonexistent_session() -> None:
 
 async def test_get_session_updates_last_seen() -> None:
     await _clear_sessions()
-    sid = await _create_session()
+    sid = await _create_session("127.0.0.1")
     async with _sessions_lock:
-        _, ts1 = _sessions[sid]
+        _, ts1, _ip = _sessions[sid]
     await asyncio.sleep(0.01)
     await _get_session(sid)
     async with _sessions_lock:
-        _, ts2 = _sessions[sid]
+        _, ts2, _ip = _sessions[sid]
     assert ts2 >= ts1
 
 
 async def test_gc_removes_expired_sessions() -> None:
     await _clear_sessions()
-    sid = await _create_session()
+    sid = await _create_session("127.0.0.1")
 
     # Manually set last_seen to the past
     async with _sessions_lock:
-        queue, _ = _sessions[sid]
-        _sessions[sid] = (queue, time.time() - SESSION_TTL - 10)
+        queue, _, ip = _sessions[sid]
+        _sessions[sid] = (queue, time.time() - SESSION_TTL - 10, ip)
 
     # Run one GC cycle (patch sleep to break after first iteration)
     call_count = 0
