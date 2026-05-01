@@ -1,5 +1,6 @@
 import json
-from typing import Callable
+from collections.abc import Coroutine
+from typing import Any, Callable
 
 import httpx
 from fastapi import APIRouter, Form, Query, Request
@@ -21,7 +22,7 @@ RuntimeState = tuple[Config, ToolRegistry]
 def build_router(
     logger: QueryLogger,
     get_runtime_state: Callable[[], RuntimeState],
-    reload_config: Callable[[], None] | None = None,
+    reload_config: Callable[[], Coroutine[Any, Any, None]] | None = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -210,14 +211,14 @@ def build_router(
     ):
         settings_db.save_llm_provider(provider, api_key=api_key, model=model, base_url=base_url)
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse(f"/settings?saved={provider}", status_code=303)
 
     @router.post("/settings/llm/{provider}/activate", response_class=HTMLResponse)
     async def settings_activate_llm(request: Request, provider: str):
         settings_db.set_active_llm_provider(provider)
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse("/settings?activated=1", status_code=303)
 
     @router.post("/settings/db", response_class=HTMLResponse)
@@ -243,7 +244,7 @@ def build_router(
             }
         )
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse("/settings?saved=db", status_code=303)
 
     @router.post("/settings/db/add", response_class=HTMLResponse)
@@ -266,7 +267,7 @@ def build_router(
     async def settings_activate_db(request: Request, connection_id: int):
         settings_db.set_active_db_connection(connection_id)
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse("/settings?saved=db", status_code=303)
 
     @router.post("/settings/db/{connection_id}/delete", response_class=HTMLResponse)
@@ -287,14 +288,14 @@ def build_router(
             }
         )
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse("/settings?saved=chat", status_code=303)
 
     @router.post("/settings/reset", response_class=HTMLResponse)
-    def settings_reset(request: Request):
+    async def settings_reset(request: Request):
         settings_db.reset_all()
         if reload_config:
-            reload_config()
+            await reload_config()
         return RedirectResponse("/settings?reset=1", status_code=303)
 
     @router.get("/settings/models", response_class=HTMLResponse)

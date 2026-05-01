@@ -52,14 +52,11 @@ try:
         except (InvalidToken, Exception):
             return text  # plaintext fallback (e.g. migrated from old store)
 
-except ImportError:
-    log.warning("cryptography not installed — API keys stored in plaintext")
-
-    def encrypt(text: str) -> str:  # type: ignore[misc]
-        return text
-
-    def decrypt(text: str) -> str:  # type: ignore[misc]
-        return text
+except ImportError as _e:
+    raise RuntimeError(
+        "The 'cryptography' package is required for API key encryption. "
+        "Run: pip install cryptography"
+    ) from _e
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────

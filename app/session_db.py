@@ -15,6 +15,8 @@ from app import settings_db
 
 log = logging.getLogger(__name__)
 
+_VALID_MODES = frozenset({"read-only", "execute"})
+
 
 class SessionDBManager:
     """Manages per-session DB overrides and caches SQLAlchemy engines."""
@@ -65,7 +67,8 @@ class SessionDBManager:
         url = self.get_db_url(session_id)
         try:
             return SQLExecutor(url).get_version()
-        except Exception:
+        except Exception as e:
+            log.warning("Failed to get DB version for %s: %s", url, e)
             return ""
 
     def get_db_type(self, session_id: str | None) -> str:
@@ -83,7 +86,15 @@ class SessionDBManager:
         """Return the effective mode for a session."""
         conn = self.get_session_connection(session_id)
         if conn and conn.get("mode"):
-            return conn["mode"]
+            mode = conn["mode"]
+            if mode not in _VALID_MODES:
+                log.warning(
+                    "Invalid mode %r in connection %s, falling back to default",
+                    mode,
+                    conn.get("id"),
+                )
+                return default_mode
+            return mode
         return default_mode
 
     def list_connections(self) -> list[dict[str, Any]]:
@@ -99,8 +110,8 @@ class SessionDBManager:
                 try:
                     ex = SQLExecutor(url)
                     version = ex.get_version()
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.debug("Failed to get version for connection %s: %s", c.get("id"), e)
             result.append(
                 {
                     "id": c["id"],
@@ -129,5 +140,6 @@ def _extract_host(url: str) -> str:
         if host:
             return f"{db_name}@{host}{port}" if db_name else f"{host}{port}"
         return ""
-    except Exception:
+    except Exception as e:
+        log.debug("Failed to extract host from DB URL: %s", e)
         return ""

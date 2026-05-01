@@ -10,7 +10,7 @@ import httpx
 
 from app.llm.base import LLMProvider
 
-ANTHROPIC_API_VERSION = "2023-06-01"
+ANTHROPIC_API_VERSION = "2024-06-01"
 
 
 class AnthropicProvider(LLMProvider):
@@ -35,7 +35,7 @@ class AnthropicProvider(LLMProvider):
 
         payload: Dict[str, Any] = {
             "model": self.model,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
             "messages": conversation,
         }
         if system_content:

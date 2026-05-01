@@ -8,6 +8,7 @@ from app.llm.providers.anthropic import AnthropicProvider
 from app.llm.providers.chat_completions import ChatCompletionsProvider
 from app.llm.providers.ollama import OllamaProvider
 from app.mcp.registry import ToolRegistry
+from app.settings_db import ALL_PROVIDERS
 
 SYSTEM_PROMPT = """You are an expert SQL assistant connected to a {db_type} database.
 
@@ -163,6 +164,10 @@ _PROVIDER_BASE_URLS: dict[str, str] = {
 
 def _build_provider(config: Config) -> LLMProvider:
     provider = config.llm_provider.lower()
+    if provider not in ALL_PROVIDERS:
+        raise ValueError(
+            f"Unknown LLM provider {provider!r}. Valid values: {', '.join(sorted(ALL_PROVIDERS))}"
+        )
     base_url = config.llm_base_url or _PROVIDER_BASE_URLS.get(provider)
     timeout = config.llm_timeout_ms / 1000
 

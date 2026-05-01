@@ -1,5 +1,8 @@
+import logging
 import os
 from dataclasses import dataclass
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -17,7 +20,6 @@ class Config:
     llm_api_key: str
     llm_model: str
     llm_base_url: str | None
-    openai_api_mode: str
     llm_timeout_ms: int
     chat_history_enabled: bool
     chat_history_limit: int
@@ -44,7 +46,6 @@ class Config:
         llm_api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
         llm_model = os.getenv("LLM_MODEL", "gpt-5.4-mini")
         llm_base_url: str | None = os.getenv("LLM_BASE_URL") or None
-        openai_api_mode = os.getenv("OPENAI_API_MODE", "chat").lower()
         llm_timeout_ms = int(os.getenv("LLM_TIMEOUT_MS", "60000"))
         chat_history_enabled = True
         chat_history_limit = 10
@@ -96,8 +97,8 @@ class Config:
                 if llm.get("base_url"):
                     llm_base_url = llm["base_url"] or None
 
-        except Exception:
-            pass  # DB not ready yet (e.g. first boot, tests)
+        except Exception as e:
+            log.debug("settings_db unavailable, using env defaults: %s", e)
 
         return cls(
             db_url=db_url,
@@ -112,7 +113,6 @@ class Config:
             llm_api_key=llm_api_key,
             llm_model=llm_model,
             llm_base_url=llm_base_url,
-            openai_api_mode=openai_api_mode,
             llm_timeout_ms=llm_timeout_ms,
             chat_history_enabled=chat_history_enabled,
             chat_history_limit=chat_history_limit,
@@ -136,7 +136,8 @@ class Config:
             if host:
                 return f"{self.db_type} — {db_name}@{host}{port}"
             return self.db_type
-        except Exception:
+        except Exception as e:
+            log.debug("Failed to parse DB URL for display: %s", e)
             return self.db_type
 
     @property
@@ -156,7 +157,8 @@ class Config:
 
         try:
             return SQLExecutor(self.db_url).get_version()
-        except Exception:
+        except Exception as e:
+            log.debug("Failed to get DB version: %s", e)
             return ""
 
     @classmethod

@@ -5,6 +5,7 @@ import uuid
 from contextlib import asynccontextmanager, suppress
 from typing import Any, Dict, Tuple
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +18,8 @@ from app.mcp.resources import ResourceRegistry
 from app.mcp.tools import build_tools
 from app.session_db import SessionDBManager
 from app.web.routes import build_router
+
+load_dotenv()
 
 logger = QueryLogger()
 session_db_mgr = SessionDBManager("")
@@ -45,14 +48,16 @@ SSE_KEEPALIVE_INTERVAL = 15  # seconds between SSE keepalive pings
 
 _sessions: Dict[str, Tuple[asyncio.Queue[str], float]] = {}
 _sessions_lock = asyncio.Lock()
+_reload_lock = asyncio.Lock()
 
 
-def reload_config() -> None:
+async def reload_config() -> None:
     """Reload config + registry after settings change. Called from settings route."""
-    global config, registry, resources, prompts
-    config, registry = _build_app_state()
-    resources = ResourceRegistry(config)
-    prompts = PromptRegistry(config)
+    async with _reload_lock:
+        global config, registry, resources, prompts
+        config, registry = _build_app_state()
+        resources = ResourceRegistry(config)
+        prompts = PromptRegistry(config)
 
 
 def get_runtime_state() -> tuple[Config, ToolRegistry]:
@@ -298,7 +303,10 @@ async def mcp(request: Request) -> Response:
 
 
 @app.get("/mcp")
-async def mcp_stream() -> Response:
+async def mcp_stream(request: Request) -> Response:
+    ok, _ = _check_origin(request)
+    if not ok:
+        return Response(status_code=403, content="Invalid Origin")
     session_id = await _create_session()
     queue = await _get_session(session_id)
 

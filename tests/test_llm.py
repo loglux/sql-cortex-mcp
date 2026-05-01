@@ -28,7 +28,6 @@ def _make_config(**overrides) -> Config:
         llm_api_key="test-key",
         llm_model="test-model",
         llm_base_url=None,
-        openai_api_mode="chat",
         llm_timeout_ms=60000,
         chat_history_enabled=True,
         chat_history_limit=10,

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from app.config import Config
 from app.logging import QueryLogEntry, QueryLogger, now_iso
@@ -10,7 +10,7 @@ from app.sql.schema import SchemaIntrospector
 
 def build_tools(
     config: Config, logger: QueryLogger, session_mgr: SessionDBManager | None = None
-) -> List[Tuple[ToolDef, Any]]:
+) -> List[tuple[ToolDef, Any]]:
     # Default executor/introspector for non-session-aware calls
     default_executor = SQLExecutor(config.db_url)
     default_introspector = SchemaIntrospector(config.db_url)
@@ -55,6 +55,14 @@ def build_tools(
 
     def sql_query(payload: Dict[str, Any]) -> Dict[str, Any]:
         sql = payload.get("sql", "")
+        if not sql.strip():
+            return {
+                "error": "Missing sql",
+                "rows": [],
+                "columns": [],
+                "row_count": 0,
+                "elapsed_ms": 0,
+            }
         limit_override = payload.get("limit")
         effective_limit = config.limit_default
         if isinstance(limit_override, int) and limit_override > 0:
@@ -98,6 +106,8 @@ def build_tools(
 
     def sql_explain(payload: Dict[str, Any]) -> Dict[str, Any]:
         sql = payload.get("sql", "")
+        if not sql.strip():
+            return {"error": "Missing sql", "plan": [], "columns": [], "elapsed_ms": 0}
         plan_sql = f"EXPLAIN {sql}"
         executor = _executor(payload)
         rows, columns, elapsed_ms, error = executor.execute(
